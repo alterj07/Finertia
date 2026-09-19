@@ -1,17 +1,20 @@
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import SecretStr, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "Finertia API"
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
     data_dir: Path = Path("../data")
     memory_graph_path: Path = Path("./var/memory_graph.json")
     feedback_path: Path = Path("./var/feedback.json")
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-4o-mini"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

@@ -3,9 +3,8 @@ from pathlib import Path
 import pytest
 
 from app.agents.base import AgentContext
-from app.agents.feedback import Adjustment, FeedbackStore
+from app.agents.feedback import Adjustment
 from app.agents.recon.agent import CashReconAgent
-from app.data.lake import DataLake
 from app.memory.graph import MemoryGraph
 
 EXPECTED_CODES = {
@@ -16,15 +15,6 @@ EXPECTED_CODES = {
     "RECON_SUMMARY",
     "AMOUNT_VARIANCE",
 }
-
-
-@pytest.fixture()
-def ctx(data_dir: Path, tmp_path: Path) -> AgentContext:
-    return AgentContext(
-        lake=DataLake.from_dir(data_dir),
-        memory=MemoryGraph(tmp_path / "memory_graph.json"),
-        feedback=FeedbackStore(tmp_path / "feedback.json"),
-    )
 
 
 def _run(ctx: AgentContext):

@@ -14,6 +14,23 @@ from app.agents.recon.rules import MatchState, RuleBook
 
 class CashReconAgent(Agent):
     name = "Cash & Reconciliation"
+    description = (
+        "Reconciles a period of bank activity to the GL cash account: "
+        "reference/amount/many-to-one/tolerance matching, unrecorded fees & "
+        "interest, timing items, FX differences, and a recon summary."
+    )
+    capabilities = [
+        "bank reconciliation",
+        "cash",
+        "matching",
+        "fees",
+        "fx",
+        "timing items",
+    ]
+    params_schema = {
+        "start": {"type": "string", "format": "date", "default": "2026-01-01"},
+        "end": {"type": "string", "format": "date", "default": "2026-03-31"},
+    }
 
     def run(
         self,

@@ -25,13 +25,15 @@ uv run uvicorn app.main:app --reload --port 8000
 - Tests: `uv run pytest` (data-driven tests need `DATA_DIR` pointing at the lab data)
 - Lint: `uv run ruff check .`
 
-Backend env vars (see `backend/.env.example`):
+Backend env vars (see `backend/.env`):
 
 | Var | Default | Purpose |
 | --- | --- | --- |
 | `DATA_DIR` | `../data` | Finance data lake (bank CSV, GL parquet, invoices JSONL, emails/) |
 | `MEMORY_GRAPH_PATH` | `./var/memory_graph.json` | Shared memory-graph JSON file |
 | `FEEDBACK_PATH` | `./var/feedback.json` | Tuning adjustments JSON file |
+| `OPENAI_API_KEY` | — | Enables LLM orchestrator planning (fallback planner if unset) |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Model used by the orchestrator planner |
 
 ### Backend architecture
 
@@ -48,8 +50,10 @@ app/
     seed.py             base layer: every invoice/JE/bank line/email/scan linked into one graph
     signals.py          structural leads (duplicates, bank changes, unrecorded items...) routed by agent
   agents/
-    base.py             AgentContext + Agent ABC + AgentResult — the orchestrator contract
-    llm.py              LLMProvider protocol + NullLLM (no keys; plug-in seam)
+    base.py             AgentContext + Agent ABC + AgentSpec/AgentResult — the orchestrator contract
+    llm.py              LLMProvider protocol + NullLLM + OpenAIProvider + build_llm(settings)
+    registry.py         AgentRegistry + AgentSpec specs; default_registry() registers specialists
+    orchestrator.py     Orchestrator — LLM plan (JSON) with deterministic keyword fallback
     feedback.py         Adjustment + FeedbackStore — the tuning seam
     recon/
       models.py         RuleParams, Match, ReconSummary
@@ -60,7 +64,13 @@ app/
     memory.py           GET /api/memory/{graph,stats,node,context,search,signals,precedents,findings}
                         POST /api/memory/findings, POST /api/memory/reset
     feedback.py         GET/POST /api/feedback, DELETE /api/feedback/{id}
+    orchestrator.py     GET /api/agents (specs), POST /api/orchestrator/run
 ```
+
+The orchestrator plans from the agent registry via OpenAI when
+`OPENAI_API_KEY` is set, and falls back to deterministic keyword matching
+otherwise. Each run is recorded as an `ORCHESTRATION_RUN` finding in the
+shared memory graph.
 
 ## Frontend
 
