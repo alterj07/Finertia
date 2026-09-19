@@ -27,15 +27,18 @@ class DataLake:
         self.gl = gl
         self.invoices = invoices
         self.emails = emails
+        self.data_dir: Path | None = None
 
     @classmethod
     def from_dir(cls, path: Path) -> "DataLake":
-        return cls(
+        lake = cls(
             bank=load_bank(path),
             gl=load_gl(path),
             invoices=load_invoices(path),
             emails=load_emails(path),
         )
+        lake.data_dir = path
+        return lake
 
     def bank_between(self, start: date | str, end: date | str) -> list[BankTxn]:
         start, end = _d(start), _d(end)

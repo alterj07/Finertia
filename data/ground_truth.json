@@ -1,0 +1,221 @@
+{
+  "company": "Northwind Robotics Inc.",
+  "period": "2026-Q1",
+  "as_of": "2026-03-31",
+  "bank_reconciliation": {
+    "bank_balance": 384844.79,
+    "book_balance": 428126.46,
+    "adjusted_balance": 428321.64,
+    "outstanding_checks": [
+      {
+        "check": 1026,
+        "amount": 2316.4,
+        "clears": "2026-04-02"
+      }
+    ],
+    "deposits_in_transit": [
+      {
+        "amount": 45793.25,
+        "clears": "2026-04-01"
+      }
+    ],
+    "book_adjustments": [
+      {
+        "item": "March bank fee",
+        "amount": -45.0
+      },
+      {
+        "item": "March interest",
+        "amount": 312.18
+      },
+      {
+        "item": "FX loss on BP-4471 wire",
+        "amount": -72.0
+      }
+    ]
+  },
+  "open_ar": [
+    {
+      "invoice": "AR-1032",
+      "customer_id": "C001",
+      "due": "2026-04-02",
+      "open": 46703.85,
+      "days_past_due": 0
+    },
+    {
+      "invoice": "AR-1035",
+      "customer_id": "C002",
+      "due": "2026-04-02",
+      "open": 25248.69,
+      "days_past_due": 0
+    },
+    {
+      "invoice": "AR-1039",
+      "customer_id": "C003",
+      "due": "2026-04-04",
+      "open": 33693.4,
+      "days_past_due": 0
+    },
+    {
+      "invoice": "AR-1042",
+      "customer_id": "C004",
+      "due": "2026-04-19",
+      "open": 65058.15,
+      "days_past_due": 0
+    },
+    {
+      "invoice": "AR-1044",
+      "customer_id": "C005",
+      "due": "2026-03-05",
+      "open": 2000.0,
+      "days_past_due": 26
+    },
+    {
+      "invoice": "AR-1045",
+      "customer_id": "C005",
+      "due": "2026-04-02",
+      "open": 21808.36,
+      "days_past_due": 0
+    },
+    {
+      "invoice": "AR-1048",
+      "customer_id": "C006",
+      "due": "2026-04-02",
+      "open": 34170.44,
+      "days_past_due": 0
+    },
+    {
+      "invoice": "AR-1049",
+      "customer_id": "C007",
+      "due": "2026-01-31",
+      "open": 20363.87,
+      "days_past_due": 59
+    },
+    {
+      "invoice": "AR-1050",
+      "customer_id": "C007",
+      "due": "2026-03-04",
+      "open": 18506.9,
+      "days_past_due": 27
+    },
+    {
+      "invoice": "AR-1051",
+      "customer_id": "C007",
+      "due": "2026-04-01",
+      "open": 21945.26,
+      "days_past_due": 0
+    },
+    {
+      "invoice": "AR-1054",
+      "customer_id": "C008",
+      "due": "2026-04-01",
+      "open": 46598.86,
+      "days_past_due": 0
+    },
+    {
+      "invoice": "AR-1057",
+      "customer_id": "C009",
+      "due": "2026-04-01",
+      "open": 40514.72,
+      "days_past_due": 0
+    },
+    {
+      "invoice": "AR-1060",
+      "customer_id": "C010",
+      "due": "2026-04-18",
+      "open": 67409.23,
+      "days_past_due": 0
+    }
+  ],
+  "open_ar_total": 444021.73,
+  "traps": [
+    {
+      "id": "T1",
+      "code": "DUPLICATE_PAYMENT",
+      "key": "INV-7781",
+      "amount": 12400.0,
+      "agent": "AP/AR",
+      "note": "Same Brightline invoice received twice (INV-7781 via portal, INV7781 via email resend), posted twice and paid twice."
+    },
+    {
+      "id": "T2",
+      "code": "AMOUNT_MISMATCH",
+      "key": "KL-2026-031",
+      "amount": 630.0,
+      "agent": "AP/AR",
+      "note": "Scanned invoice + email say $4,850.00; GL posted $5,480.00 (digit transposition). AP overstated by $630."
+    },
+    {
+      "id": "T3",
+      "code": "VENDOR_BANK_CHANGE",
+      "key": "CN-2026-03",
+      "amount": 16880.0,
+      "agent": "Audit & Controls",
+      "note": "Remit-to changed to First Coastal ****9921 after an email from look-alike domain cloudnimbus-billing.co; wire already sent."
+    },
+    {
+      "id": "T4",
+      "code": "LUMP_SUM_MATCH",
+      "key": "88213",
+      "amount": 58339.68,
+      "agent": "Cash & Reconciliation",
+      "note": "One bank credit matches three GL receipts; remittance email lists the invoices."
+    },
+    {
+      "id": "T5",
+      "code": "UNRECORDED_BANK_ITEMS",
+      "key": "2026-03",
+      "amount": 267.18,
+      "agent": "Cash & Reconciliation",
+      "note": "March bank fee (-45.00) and interest (+312.18) are in the bank but not in the GL."
+    },
+    {
+      "id": "T6",
+      "code": "SHORT_PAY_DISPUTE",
+      "key": "AR-1044",
+      "amount": 2000.0,
+      "agent": "AP/AR",
+      "note": "Orbit withheld $2,000 for damaged units; open balance is a dispute, not a late payment."
+    },
+    {
+      "id": "T7",
+      "code": "UNRECORDED_LIABILITY",
+      "key": "SCG-1187",
+      "amount": 9750.0,
+      "agent": "Close",
+      "note": "Summit invoice dated 2026-03-28 in inbox and scan but not in GL; needs March accrual."
+    },
+    {
+      "id": "T8",
+      "code": "SOD_VIOLATION",
+      "key": "JE-9001",
+      "amount": 50000.0,
+      "agent": "Audit & Controls",
+      "note": "Manual JE posted Sunday 22:47 by jpatel and approved by jpatel; round $50,000; vague memo."
+    },
+    {
+      "id": "T9",
+      "code": "TIMING_ITEMS",
+      "key": "CHECK 1026 / DEPOSIT 5521",
+      "amount": null,
+      "agent": "Cash & Reconciliation",
+      "note": "Outstanding check to Metro Office and Lumen deposit in transit are timing differences, not errors."
+    },
+    {
+      "id": "T10",
+      "code": "FX_DIFFERENCE",
+      "key": "BP-4471",
+      "amount": 72.0,
+      "agent": "Cash & Reconciliation",
+      "note": "EUR invoice booked at 1.08; wire settled at 1.089. $72 FX loss not recorded."
+    },
+    {
+      "id": "T11",
+      "code": "PROMISE_TO_PAY",
+      "key": "C007",
+      "amount": null,
+      "agent": "Forecasting",
+      "note": "Crescent has paid nothing in Q1 but promised full payment by 2026-04-15 (email); forecast should use that date."
+    }
+  ]
+}

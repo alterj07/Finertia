@@ -1,0 +1,21 @@
+From: Helios Medical Payables <payables@heliosmedical.com>
+To: ar@northwindrobotics.com
+Subject: Remittance advice - payment 88213
+Date: Wed, 18 Mar 2026 10:02:00 -0000
+Message-ID: <2357544871@heliosmedical.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+
+Remittance advice
+Payment reference: 88213
+Payment date: 2026-03-18
+Method: ACH
+Total paid: $58,339.68
+
+Invoices paid:
+  AR-1033    2026-01-02   $   28,505.01
+  AR-1034    2026-02-02   $   22,449.17
+  AR-1036    2026-02-20   $    7,385.50
+
+Please apply accordingly.

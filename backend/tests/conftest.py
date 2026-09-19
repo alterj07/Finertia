@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.config import settings
 from app.main import create_app
 
-LAB_DATA = Path("/home/alterj07/Downloads/finance-agent-lab/data")
+LAB_DATA = Path(__file__).resolve().parents[2] / "data"
 DATA_DIR = Path(os.environ.get("DATA_DIR", LAB_DATA))
 
 
