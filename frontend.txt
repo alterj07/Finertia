@@ -1,0 +1,508 @@
+FINERTIA — FRONTEND BUILD SPEC
+================================
+Agentic CFO platform: pays vendors, collects from customers, reconciles cash,
+closes the books, forecasts, answers auditors, and explains why the numbers moved.
+
+This document is the source of truth for building the frontend. A working
+reference mockup already exists as a single self-contained HTML file
+(vanilla JS + D3 for the graph) — treat this spec as the canonical
+description of what that mockup should become as a real application, and
+resolve any conflict between this file and the mockup in favor of this file.
+
+Read this whole document before writing code. Section 9 (screen specs) and
+Section 11 (Data Graph) are the most detailed and most important.
+
+
+0. PRODUCT IDENTITY
+--------------------
+Name: Finertia
+Tagline (for empty states / login / loading only, not chrome): "Your books,
+run by agents you can audit."
+Voice: plain, declarative, finance-literate. Never cutesy. An error says
+what happened and what to do, not "oops."
+
+
+1. TECH STACK (recommended, not mandatory)
+--------------------------------------------
+- Nextjs + TypeScript, TailwindCSS & Shadcn.
+- Styling: CSS variables (design tokens below) + CSS Modules or vanilla CSS.
+  Do NOT reach for a generic component-kit look (no default Material/Bootstrap
+  cards, no default shadcn styling untouched) — the tokens below are specific
+  and load-bearing for the brand.
+- Graph view: D3.js (d3-force, d3-drag, d3-zoom) driving an SVG render, OR
+  react-force-graph if the team prefers a maintained wrapper. Do not use a
+  canvas-only library that can't do crisp text labels at small sizes.
+- Charts (forecast line, waterfall): lightweight — Recharts or hand-rolled
+  SVG. No heavyweight charting suites.
+- State: co-locate per-module state; lift shared state (active tab, selected
+  entity/period, copilot conversation, autonomy settings) to a top-level
+  store (Zustand or Context is enough — this app does not need Redux).
+- Fonts: Newsreader (serif), Inter (sans), IBM Plex Mono (tabular data).
+  Self-host or load via Google Fonts.
+
+
+2. DESIGN TOKENS
+------------------
+Metaphor: a physical ledger / bank register, not a SaaS dashboard. Hairline
+rules, tabular alignment, expandable rows instead of modals wherever possible.
+Explicitly avoid: rounded-card grids with drop shadows, gradient washes,
+all-caps eyebrow labels, tracked-out labels, "→" appended to buttons.
+
+COLOR — LIGHT MODE
+  --paper:        #F6F4EE   (page background)
+  --paper-raised: #FBFAF6   (hover surfaces, panels, right rail)
+  --ink:          #171B1F   (primary text)
+  --ink-soft:     #5B5F5A   (secondary text, meta)
+  --rule:         #D8D3C7   (hairline borders, dividers)
+  --rule-soft:    #E7E3D8   (lighter row dividers)
+  --green:        #1F5F4A   (brand / positive / auto-approved / Payables)
+  --green-soft:   #E4EDE8
+  --gold:         #8A6A1E   (pending / needs attention / Receivables)
+  --gold-soft:    #F1E9D4
+  --rust:         #A6412A   (exception / flagged / blocked / Audit)
+  --rust-soft:    #F3E2DC
+  --blue:         #2C4A6E   (Reconciliation)
+  --blue-soft:    #E1E7EE
+  --forecast:     #6E5A9E   (Forecast module accent — purple, used only in
+                             the graph legend and forecast chart)
+  --rail-bg:      #12181B   (left nav background — dark, always, in both modes)
+
+COLOR — DARK MODE (mirror tokens, same names)
+  --paper:        #14181B
+  --paper-raised: #1B2023
+  --ink:          #EDEAE2
+  --ink-soft:     #9A9C94
+  --rule:         #333833
+  --rule-soft:    #262B26
+  --green-soft:   #1B2C25
+  --gold-soft:    #2A2418
+  --rust-soft:    #2E1E1A
+  --blue-soft:    #1B242E
+  (green/gold/rust/blue base hues stay the same; only the "-soft" chip
+  backgrounds and structural surfaces shift for dark mode)
+
+Respect the OS color-scheme preference by default; allow manual override.
+
+TYPE
+  Display / section headers / big KPI numbers / screen titles:
+    font-family: 'Newsreader', Georgia, serif
+    Use for: block titles (16.5px), KPI values (26px), copilot panel
+    title (15px), topbar breadcrumb (20px). Regular or medium weight only —
+    no bold serif headlines.
+  All numeric/tabular data (amounts, dates, percentages, IDs, log
+  timestamps, evidence strings):
+    font-family: 'IBM Plex Mono', monospace
+    This is a deliberate, load-bearing choice: every dollar figure in the
+    product uses tabular mono figures so columns of numbers actually align.
+    Never render a currency amount in the sans or serif face.
+  UI chrome, labels, body copy, nav items, buttons, copilot conversation:
+    font-family: 'Inter', -apple-system, sans-serif
+
+  Scale: 26 / 20 / 16.5 / 13.5 / 12.5 / 11.5 / 11 / 10.5 / 10 / 9.5 px.
+  Line length inside the copilot rail and row-detail panels should stay
+  under ~70 characters.
+
+LAYOUT
+  Three-column app shell, fixed, no page-level scroll — each column scrolls
+  independently:
+    [ 220px left rail ] [ flexible main content ] [ 340px copilot rail ]
+  Below 880px viewport width: collapse left rail and copilot rail behind
+  toggle buttons in the topbar; main content becomes full width. (Do not
+  simply hide them with no way to reopen — see Section 12, Responsive.)
+
+  Border radius: 0–4px everywhere. Nothing pill-shaped except filter
+  "chips" (14px radius) and the chat send button (circular, 32px).
+
+  No drop shadows except a single subtle shadow on the graph detail panel
+  (floating over the canvas) and the copilot's outgoing user-message bubble.
+  Everything else is delineated with 1px hairlines, not elevation.
+
+
+3. GLOBAL APP SHELL
+---------------------
+LEFT RAIL (dark, --rail-bg, full height, independent scroll)
+  - Brand lockup at top: "Finertia" in Newsreader 19px, white/--paper, with
+    a small subtitle below in Inter 10.5px, muted: "Agentic Finance OS".
+  - Nav list, one item per module (see Section 4 for the full list). Each
+    item: small dot indicator (muted grey; turns gold if the module has
+    items needing attention), label, and a right-aligned count badge in
+    mono font when there's a pending count. Active item gets a left border
+    accent in --green and a slightly lighter background.
+  - Footer block, pinned to bottom: "Autonomy" mini-panel — a static list
+    of workflow → autonomy-level pairs (see Section 5). This must always be
+    visible without scrolling; it's a trust signal, not an afterthought.
+
+TOPBAR (sticky, spans main content column only, 1px bottom rule)
+  - Left: breadcrumb — current module name in Newsreader 20px, with the
+    current date in muted Inter 14px beside it.
+  - Right: entity/subsidiary selector (plain text + dropdown, e.g. "Acme
+    Holdings, Consolidated") and a period pill in mono font (e.g. "FY26 ·
+    Sep ▾") that opens a period picker.
+
+MAIN CONTENT (scrolls independently, max content width ~920px, left-aligned
+  with generous right gutter on wide screens — do not stretch ledger rows
+  full-bleed on a 1440px+ display)
+
+COPILOT RAIL (right, --paper-raised background, independent scroll,
+  persistent across every module — see Section 6)
+
+
+4. NAVIGATION / INFORMATION ARCHITECTURE
+-------------------------------------------
+Left rail items, in this order:
+  1. Command Center      (home / daily overview)
+  2. Payables            (AP)
+  3. Receivables         (AR)
+  4. Reconciliation
+  5. Close               (month-end close)
+  6. Forecast
+  7. Audit & Controls
+  8. Data Graph
+
+Each maps to one top-level route. Deep links within a module (e.g. a
+specific invoice) should be real routes (e.g. /payables/invoices/8901) so
+they're shareable and the copilot can link to them.
+
+
+5. AUTONOMY MODEL (cross-cutting concept — implement as shared state)
+------------------------------------------------------------------------
+Every automatable workflow has one of three autonomy levels, set in
+Settings but always visible:
+  - Auto      — agent acts without waiting for a human (e.g. "AP under
+                $5k", "Recon match")
+  - Assisted  — agent drafts / proposes, a human must approve before it's
+                final (e.g. "AR dunning", most Payables exceptions)
+  - Manual    — agent surfaces information only; a human performs the
+                action (e.g. "Journal entries")
+This mapping renders as the "Autonomy" strip in the left rail footer and
+should be editable from a Settings screen (not detailed further here —
+build a simple list of workflow → 3-way toggle).
+
+Every ledger row that represents an agent action must carry a visible tag
+reflecting how it was handled:
+  - "auto"   — green, agent acted independently, within policy
+  - "review" — gold, agent proposed something, waiting on a human
+  - "flag"   — rust, agent found something anomalous / policy-breaking
+These three tag states are used consistently across every module — do not
+invent per-module variants.
+
+
+6. THE COPILOT RAIL (persistent, right side)
+-----------------------------------------------
+This is a core product surface, not a bolt-on chat widget. It is present
+and functional on every screen, and its content is context-aware to the
+active module.
+
+Structure, top to bottom:
+  - Header: "Ask Finertia" (Newsreader 15px) + one-line subtitle "Context-
+    aware to whatever screen you're on" (muted, 11px).
+  - Message log (scrollable): agent messages are left-aligned, plain text,
+    with a small mono-font label "FINERTIA" above the first line, plus an
+    optional "cite" chip below the message (e.g. "View activity log →")
+    that is clickable and navigates to the relevant module/row. User
+    messages are right-aligned bubbles (dark fill, light text, more
+    rounded corner on the bottom-right to indicate direction).
+  - Suggested-question chips: 2–4 short chips above the input, specific to
+    the current module (see per-module suggestion lists in Section 9).
+    Clicking one sends it as if typed.
+  - Input row: rounded text input + circular send button.
+
+Behavior requirements:
+  - Switching modules does NOT clear the conversation history in a real
+    build — it should re-scope suggestions and show a fresh contextual
+    opening message the first time a module is visited in a session, but
+    preserve prior turns if the user has already been chatting. (The
+    reference mockup resets the whole log per tab for simplicity — the
+    real app should not do this.)
+  - Any answer that references specific numbers or transactions must
+    include at least one clickable citation that navigates to the
+    underlying row/document (ties into Section 11, the Data Graph, and
+    Section 9's Audit & Controls screen).
+  - The input must remain usable and keyboard-accessible (Enter to send)
+    at all times, including on mobile where the rail collapses into a
+    slide-over panel triggered from the topbar (see Section 12).
+
+
+7. SHARED COMPONENTS (build these once, reuse everywhere)
+--------------------------------------------------------------
+KPI ROW
+  A horizontal strip of 3–4 stat cells separated by hairline verticals
+  (not separate cards). Each cell: small muted label, big Newsreader
+  value, small mono delta line below (green if favorable, rust if not —
+  favorable direction depends on the metric, e.g. rising AP-outstanding
+  is favorable/green while rising 60+-day AR aging is unfavorable/rust).
+
+LEDGER (expandable row list)
+  A list with a top hairline in --ink (heavier than internal --rule-soft
+  dividers). Each row: optional status tag (auto/review/flag per Section
+  5), a text block (bold-ish primary line + muted small secondary line),
+  a right-aligned mono amount, and a chevron. Clicking the row toggles an
+  inline detail panel below it (not a modal) containing: explanatory
+  prose from the agent, an optional monospace "evidence" block (a literal
+  trace of the data that led to the conclusion — PO numbers, matched
+  transaction IDs, etc.), and action buttons (primary = agent's
+  recommended action, e.g. "Approve"; secondary = alternatives; ghost =
+  informational, e.g. "View all 3").
+
+CHECKLIST ROW
+  Used in Close. Left: a small circular status marker — filled green
+  check (done), filled gold "···" (in progress), filled rust "!"
+  (blocked), or outlined empty (to-do, unassigned/未started). Middle:
+  task label. Right: mono-font owner tag, "agent" or "you" (or a person's
+  initials once a human is assigned).
+
+TAGS / CHIPS
+  Status tag (auto/review/flag): small rounded-rect, mono font, colored
+  per Section 5.
+  Filter chip: pill-shaped, outlined, muted text; "active" state inverts
+  to solid dark fill + light text. Used for scenario toggles (Forecast)
+  and category filters (Data Graph).
+
+CALLOUT
+  A left-bordered (2px, --green) paragraph of muted prose used to add one
+  piece of interpretive context below a block (e.g. summarizing what an
+  auto-paid batch means). Sparing use only — one per block maximum.
+
+WATERFALL (small inline chart)
+  A handful of vertical bars (flex row, bottom-aligned, no axis chrome)
+  showing a start value, one bar per driver, and an end value, used to
+  explain a variance (e.g. gross margin bridge). Muted grey for
+  start/end bars, rust for negative drivers, green for positive ones.
+
+
+8. RESPONSIVE / MOBILE
+-------------------------
+Breakpoint at 880px:
+  - Left rail and copilot rail collapse to icon-triggered slide-over
+    panels (not permanently hidden — every piece of functionality in this
+    spec must remain reachable on a phone, since a CFO will check
+    approvals from their phone).
+  - Topbar gets a hamburger-style icon on the left (opens rail) and a
+    chat-bubble icon on the right (opens copilot).
+  - Ledger rows stack the amount below the text block instead of beside
+    it once width is tight; the KPI row goes to a 2x2 grid instead of
+    1x4.
+  - Respect safe-area insets on iOS (env(safe-area-inset-*)) for any
+    fixed/sticky header or bottom bar.
+
+
+9. SCREEN-BY-SCREEN SPECS
+-----------------------------
+
+9.1 COMMAND CENTER (home, route: /)
+  Purpose: the CFO's first screen every day. Answers "what happened
+  overnight and what needs me."
+  Blocks, top to bottom:
+    a) KPI row: Cash, AR outstanding, AP outstanding, Runway — each with
+       a week-over-week delta.
+    b) "Overnight agent activity" ledger — every automated action from
+       the last cycle, mixing "auto" (fully handled) and "review"/"flag"
+       (needs attention) rows. This list should be sortable/filterable by
+       tag in a real build, sorted by tag severity (flag > review > auto)
+       by default.
+    c) "Close status" mini-checklist — a 3–5 row preview of the current
+       close cycle's checklist (full detail lives in the Close module),
+       with a "View full close checklist" link.
+  Copilot suggestions for this screen: "Why did cash drop this week?",
+  "What needs my approval today?", "Summarize overnight activity".
+
+9.2 PAYABLES (/payables)
+  Blocks:
+    a) "Needs your approval" ledger — every invoice outside auto-approve
+       policy, each expandable to show why (duplicate PO, over-PO amount,
+       new/unverified vendor, etc.) with evidence and approve/reject/
+       escalate actions. A new-vendor-with-no-history pattern should be
+       visually distinct (flag tag, not review) since it's a fraud-risk
+       signal, not just a policy exception.
+    b) "This week, auto-paid" summary — a single summary line/count plus
+       a callout explaining the auto-pay policy, with a link to the full
+       auto-paid list (a real build should make this its own filterable
+       ledger, not just a static count).
+  Bulk actions: "Approve all under policy" and similar batch actions
+  should be available above the approval queue in a real build.
+  Copilot suggestions: "Why was this invoice flagged?", "Show me all
+  invoices over $10k", "Approve everything under policy".
+
+9.3 RECEIVABLES (/receivables)
+  Blocks:
+    a) Aging KPI row: Current, 1–30, 31–60, 60+ days, each as a dollar
+       total; 60+ shows a delta and should turn rust if trending up.
+    b) "Collections activity" ledger — auto-sent reminders (auto tag),
+       disputes needing a human-reviewed reply (review tag, with an
+       agent-drafted response the human edits before sending — never
+       auto-send a reply to a customer dispute), and rising-risk customer
+       flags (flag tag) with a recommended action (e.g. move to prepay
+       terms).
+  Copilot suggestions: "Which customers are highest risk?", "Draft a
+  collections email to Acme", "Why is DSO trending up?".
+
+9.4 RECONCILIATION (/reconciliation)
+  Blocks:
+    a) Account ledger — one row per connected bank/processor account,
+       showing match rate as a percentage. Expandable to show unmatched
+       items and the agent's explanation (timing difference vs. a real
+       break), with a suggested journal entry and approve action where
+       relevant.
+  Copilot suggestions: "Why are these 2 transactions unmatched?", "Show
+  me last month's match rate", "Explain the Stripe variance".
+
+9.5 CLOSE (/close)
+  Blocks:
+    a) Full checklist (see Checklist Row component) with a days-remaining
+       countdown in the block header.
+    b) "Variance flags" ledger — account-level variances vs. prior period,
+       expandable to a waterfall chart breaking the variance into named
+       drivers.
+  Copilot suggestions: "What's blocking close?", "Why did COGS move 2.1
+  pts?", "Show me the accrual for marketing".
+
+9.6 FORECAST (/forecast)
+  Blocks:
+    a) 13-week cash forecast line/area chart with a confidence band and a
+       dashed covenant-floor reference line.
+    b) Scenario chips below the chart (e.g. "Base case", "AR slips 2
+       weeks", "New credit line") that swap the chart data; a trailing
+       "+ ask a question" chip that focuses the copilot input pre-filled
+       with a what-if prompt starter.
+    c) A callout summarizing the trough value and covenant headroom.
+  Copilot suggestions: "What if collections slip 2 weeks?", "Why did the
+  forecast change?", "Show me the runway scenario".
+
+9.7 AUDIT & CONTROLS (/audit)
+  Purpose: the primary surface for external auditors and internal
+  controllers. Copilot-first — most of the value here is Q&A.
+  Blocks:
+    a) "Ask about any number" — shown as an already-expanded example Q&A
+       ledger row (a real build should make this a proper search/ask box
+       feeding the same underlying copilot, with results logged here as a
+       permanent record auditors can reference), including a monospace
+       evidence trail and "View full evidence packet" / "Export for PBC
+       request" actions.
+    b) "Immutable activity log" — every agent action, timestamped,
+       tagged "system" or "human" with the approver's name where
+       relevant. This log must be append-only in the real backend and
+       exportable.
+  Copilot suggestions: "Why did gross margin drop in August?", "Pull
+  evidence for the PP&E rollforward", "Who approved this journal entry?".
+
+9.8 DATA GRAPH (/graph) — see Section 11 for full detail.
+
+
+10. COPY / TONE RULES
+------------------------
+- Buttons name the action taken, not a generic verb: "Approve", "Reject &
+  notify vendor", "Confirm as timing difference" — not "Submit" or "OK".
+- Never use exclamation points or hype language ("Great!", "All done!").
+- Agent explanations are written as a knowledgeable colleague reporting
+  findings, not a chatbot: state the finding, then the evidence, then
+  (if applicable) a recommendation. Avoid hedging filler ("It looks like
+  maybe..."). If confidence is genuinely low, say the percentage.
+- Empty states describe what will appear there and why it's currently
+  empty (e.g. "No exceptions today — every invoice this cycle matched
+  policy." rather than a bare "Nothing here.").
+
+
+11. DATA GRAPH (/graph) — DETAILED SPEC
+-------------------------------------------
+Purpose: a force-directed graph (Obsidian-style) of every document,
+dataset, and agent, showing which agent produced or consumed which piece
+of data. This is the visual backbone of explainability — the Audit
+module's citation trail is, conceptually, a path through this graph.
+
+NODE TYPES
+  - Agent nodes: one per agent (AP Agent, AR Agent, Reconciliation Agent,
+    Close Agent, Forecast Agent, Audit Agent). Rendered larger (radius
+    ~15px, vs. 6–12px scaled by connection count for documents), always
+    filled solid --ink, never faded even when dimmed by filters/hover
+    (agents are always a stable visual anchor).
+  - Document/data nodes: colored by owning module using the module colors
+    from Section 2 (payables=green, receivables=gold,
+    reconciliation=blue, close=ink-soft/grey, forecast=purple #6E5A9E,
+    audit=rust). Radius scales with degree (connection count): base 6px +
+    min(degree, 6)px.
+  Each node carries metadata: id/label, group (module), type (e.g.
+  "Invoice", "Purchase order", "Bank feed", "Journal entry", "Reference
+  data", "Model", "Evidence bundle", "Log"), and lastTouched (a date or
+  "live" for continuously-updated records).
+
+EDGES
+  An edge means "this agent produced or read this document" or "this
+  document was derived from / references that document" (e.g. an Invoice
+  referencing its PO). Do not distinguish edge direction visually in v1
+  (no arrowheads) — the relationship is symmetric enough for the CFO's
+  purpose ("these are connected") though the data model underneath can
+  store direction if useful later. Edges render as thin hairline lines
+  (--rule), full opacity by default.
+
+LAYOUT / PHYSICS
+  Force-directed simulation:
+    - link force, distance ~70px, strength ~0.5
+    - many-body (charge) force, strength ~ -190
+    - center force, pinned to canvas center
+    - collision force, radius = node radius + ~16px padding
+  Nodes are draggable (pin on drag-start via fx/fy, release on drag-end).
+  Canvas supports pan (drag on empty space) and zoom (scroll/pinch),
+  scale-clamped roughly 0.4x–3x.
+
+INTERACTIONS
+  - Hover a node: highlight it and its direct neighbors at full opacity;
+    dim (not hide) every other node/edge to ~10–15% opacity. Edges
+    connected to the hovered node render in --green to show direction of
+    attention.
+  - Click a node: same highlight, but persistent (doesn't clear on
+    mouseleave) and opens a detail panel floating top-right over the
+    canvas: node type (small mono kicker), name (Newsreader), then rows
+    for Type / Last touched / Connections count, then a clickable list of
+    every connected node's label — clicking one re-centers the selection
+    on that node (lets a user "walk" the graph without leaving the
+    panel). A close (✕) button clears the selection and highlight.
+  - Filter chips above the canvas: "All", "Agents", and one per module.
+    Selecting a filter hides (not just dims) nodes/edges outside that
+    category, keeping existing node positions rather than re-running the
+    simulation from scratch.
+  - A small always-visible legend (bottom-left, floating over the canvas)
+    maps color → category.
+  - A small hint label (top-left, floating) reminds first-time users:
+    "Drag to pan · scroll to zoom · click a node to trace it".
+
+SCALE NOTE FOR THE REAL PRODUCT (not just the mockup)
+  The reference mockup hard-codes ~26 nodes for legibility. A real
+  ledger will have orders of magnitude more documents. Do not render
+  every individual document node by default at production scale — default
+  the graph to an aggregated view (one node per entity: a vendor, a
+  customer, a journal batch, a bank account) and let a click "expand"
+  that node into its constituent documents as a local sub-graph. Only the
+  aggregated default and the expand-on-click interaction need to be
+  functionally real for v1; the fully-expanded, document-level graph can
+  initially be limited to whatever is currently loaded/relevant (e.g. the
+  documents touched in the active period) rather than the entire
+  historical ledger.
+  Copilot suggestions for this screen: "What documents feed the 13-week
+  forecast?", "What else touches Invoice #5512?", "Show me everything
+  Meridian Co. is linked to".
+
+
+12. ACCESSIBILITY
+--------------------
+- Every interactive element (rows, chips, nav items, graph nodes) must be
+  reachable and operable via keyboard, with a visible focus ring (do not
+  suppress outline without providing a replacement).
+- Color is never the only signal: the auto/review/flag tags carry text
+  labels, not just color; the checklist status markers carry a glyph
+  (✓ / ··· / !) in addition to color.
+- Respect prefers-reduced-motion: disable the force-simulation's
+  continuous settling animation (jump to a static layout) and skip any
+  transition/entrance animation when this is set.
+- Maintain WCAG AA contrast for text against --paper and --paper-raised
+  in both light and dark themes — audit the exact hex values above during
+  implementation rather than assuming they pass.
+
+
+13. WHAT NOT TO BUILD (explicitly out of scope for this pass)
+------------------------------------------------------------------
+- Authentication/login screens, user management, billing.
+- The full Settings screen beyond the autonomy-level list mentioned in
+  Section 5.
+- Real integrations (ERP, bank feeds, CRM) — all data in this pass is
+  mocked/seeded; structure the data layer so real connectors can be
+  swapped in later without changing the component layer.
