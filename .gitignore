@@ -10,6 +10,9 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 
+# Local state
+backend/var/*.json
+
 # Env files
 .env*
 !.env.example

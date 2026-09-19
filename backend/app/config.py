@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -7,6 +9,9 @@ class Settings(BaseSettings):
 
     app_name: str = "Finertia API"
     cors_origins: list[str] = ["http://localhost:3000"]
+    data_dir: Path = Path("../data")
+    memory_graph_path: Path = Path("./var/memory_graph.json")
+    feedback_path: Path = Path("./var/feedback.json")
 
     @field_validator("cors_origins", mode="before")
     @classmethod
