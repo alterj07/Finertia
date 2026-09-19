@@ -33,8 +33,27 @@ class AgentResult(BaseModel):
     trace: list[dict[str, Any]] = []
 
 
+class AgentSpec(BaseModel):
+    name: str
+    description: str = ""
+    capabilities: list[str] = []
+    params: dict[str, Any] = {}
+
+
 class Agent(ABC):
     name: str = "agent"
+    description: str = ""
+    capabilities: list[str] = []
+    params_schema: dict[str, Any] = {}
+
+    @classmethod
+    def spec(cls) -> AgentSpec:
+        return AgentSpec(
+            name=cls.name,
+            description=cls.description,
+            capabilities=cls.capabilities,
+            params=cls.params_schema,
+        )
 
     def __init__(self) -> None:
         self._trace: list[dict[str, Any]] = []

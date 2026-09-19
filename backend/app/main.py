@@ -5,6 +5,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agents.feedback import FeedbackStore
+from app.agents.llm import build_llm
+from app.agents.registry import default_registry
 from app.api.router import api_router
 from app.config import settings
 from app.data.lake import DataLake
@@ -20,6 +22,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if app.state.lake is not None:
         app.state.memory.seed(app.state.lake)
     app.state.feedback = FeedbackStore(settings.feedback_path)
+    app.state.llm = build_llm(settings)
+    app.state.registry = default_registry()
     yield
 
 

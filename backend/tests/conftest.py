@@ -4,8 +4,12 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.agents.base import AgentContext
+from app.agents.feedback import FeedbackStore
 from app.config import settings
+from app.data.lake import DataLake
 from app.main import create_app
+from app.memory.graph import MemoryGraph
 
 LAB_DATA = Path(__file__).resolve().parents[2] / "data"
 DATA_DIR = Path(os.environ.get("DATA_DIR", LAB_DATA))
@@ -16,6 +20,7 @@ def client(tmp_path, monkeypatch) -> TestClient:
     monkeypatch.setattr(settings, "memory_graph_path", tmp_path / "memory_graph.json")
     monkeypatch.setattr(settings, "feedback_path", tmp_path / "feedback.json")
     monkeypatch.setattr(settings, "data_dir", DATA_DIR)
+    monkeypatch.setattr(settings, "openai_api_key", None)
     with TestClient(create_app()) as c:
         yield c
 
@@ -25,3 +30,12 @@ def data_dir() -> Path:
     if not DATA_DIR.is_dir():
         pytest.skip(f"DATA_DIR not found: {DATA_DIR}")
     return DATA_DIR
+
+
+@pytest.fixture()
+def ctx(data_dir: Path, tmp_path: Path) -> AgentContext:
+    return AgentContext(
+        lake=DataLake.from_dir(data_dir),
+        memory=MemoryGraph(tmp_path / "memory_graph.json"),
+        feedback=FeedbackStore(tmp_path / "feedback.json"),
+    )

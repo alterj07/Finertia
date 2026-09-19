@@ -25,6 +25,7 @@ def run_recon(req: ReconRequest, request: Request) -> dict:
         lake=lake,
         memory=request.app.state.memory,
         feedback=request.app.state.feedback,
+        llm=request.app.state.llm,
     )
     result = CashReconAgent().run(ctx, start=req.start, end=req.end)
     return {
