@@ -578,18 +578,47 @@ def _seed_emails(g: MemoryGraph, emails: list[Email]) -> None:
 
 # ------------------------------------------------------------------- scans
 def _seed_scans(g: MemoryGraph, lake: DataLake) -> None:
+    """Scan nodes carry the OCR text and parsed fields, and the SCAN_OF edge records
+    how the scan compares to the invoice we were billed for (total, remit account)."""
+    from app.memory.ocr import load_ocr_cache, parse_invoice_fields
+
     folder = getattr(lake, "data_dir", None)
     if folder is None:
         return
+    cache = load_ocr_cache(folder)
     for p in sorted((folder / "scanned_invoices").glob("*.png")):
         parts = p.stem.split("_", 2)  # scan_<vendor>_<INVOICE-NO>
         ref = parts[2] if len(parts) == 3 else p.stem
-        g.upsert_node(p.name, type="scan", path=str(p), invoice_ref=ref, ocr_text=None, text=ref)
+        ocr = cache.get(p.name)
+        fields = parse_invoice_fields(ocr["text"]) if ocr else {}
+        if fields.get("number"):
+            ref = fields["number"]
+        g.upsert_node(
+            p.name,
+            type="scan",
+            path=str(p),
+            invoice_ref=ref,
+            ocr_text=ocr["text"] if ocr else None,
+            ocr_lines=len(ocr["lines"]) if ocr else 0,
+            text=ocr["text"] if ocr else ref,
+            **{f"ocr_{k}": v for k, v in fields.items()},
+        )
         t = g.resolve(ref)
-        if t in g.nodes:
-            g.link(p.name, "SCAN_OF", t)
-            g.nodes[p.name].props["period"] = g.nodes[t].props.get("period")
-            _link_period(g, p.name, g.nodes[t].props.get("invoice_date"))
+        if t not in g.nodes:
+            continue
+        inv = g.nodes[t].props
+        eprops: dict = {}
+        if fields.get("total") is not None and inv.get("total") is not None:
+            eprops["total_diff"] = round(fields["total"] - inv["total"], 2)
+        if fields.get("remit_account") and inv.get("remit_account"):
+            eprops["remit_match"] = fields["remit_account"] == inv["remit_account"]
+        g.link(p.name, "SCAN_OF", t, **eprops)
+        g.nodes[p.name].props["period"] = inv.get("period")
+        _link_period(g, p.name, inv.get("invoice_date"))
+        if fields.get("total") is not None:
+            inv["scan_total"] = fields["total"]
+        if fields.get("remit_account"):
+            inv["scan_remit_account"] = fields["remit_account"]
 
 
 # ----------------------------------------------------------- derived facts
