@@ -61,7 +61,12 @@ def test_llm_plan_unknown_agent_falls_back() -> None:
     plan = Orchestrator(default_registry(), llm).plan("reconcile")
     assert plan.planner == "fallback"
     # no capability keyword matched, so the fallback runs every registered agent
-    assert [c.agent for c in plan.calls] == ["Cash & Reconciliation", "AP/AR", "Deals"]
+    assert [c.agent for c in plan.calls] == [
+        "Cash & Reconciliation",
+        "AP/AR",
+        "Deals",
+        "Audit & Controls",
+    ]
 
 
 def test_llm_plan_garbage_falls_back() -> None:
@@ -72,7 +77,12 @@ def test_llm_plan_garbage_falls_back() -> None:
 def test_null_llm_falls_back() -> None:
     plan = Orchestrator(default_registry(), NullLLM()).plan("anything")
     assert plan.planner == "fallback"
-    assert [c.agent for c in plan.calls] == ["Cash & Reconciliation", "AP/AR", "Deals"]
+    assert [c.agent for c in plan.calls] == [
+        "Cash & Reconciliation",
+        "AP/AR",
+        "Deals",
+        "Audit & Controls",
+    ]
     plan = Orchestrator(default_registry(), NullLLM()).plan("bank reconciliation")
     assert [c.agent for c in plan.calls] == ["Cash & Reconciliation"]
     plan = Orchestrator(default_registry(), NullLLM()).plan("receivables aging")
@@ -81,9 +91,9 @@ def test_null_llm_falls_back() -> None:
 
 def test_fallback_scoring_two_agents() -> None:
     reg = AgentRegistry()
-    from app.agents.recon.agent import CashReconAgent
+    from app.agents.recon.agent import ReconAgent
 
-    reg.register(CashReconAgent)
+    reg.register(ReconAgent)
     reg.register(DummyForecastAgent)
     orch = Orchestrator(reg, NullLLM())
     plan = orch.plan("please reconcile the bank")
@@ -94,17 +104,27 @@ def test_fallback_scoring_two_agents() -> None:
 
 def test_orchestrator_run_end_to_end(ctx: AgentContext) -> None:
     result = Orchestrator(default_registry(), NullLLM()).run(ctx, "close the books for Q1")
-    assert [r.agent for r in result.results] == ["Cash & Reconciliation", "AP/AR", "Deals"]
+    assert [r.agent for r in result.results] == [
+        "Cash & Reconciliation",
+        "AP/AR",
+        "Deals",
+        "Audit & Controls",
+    ]
     assert result.results[0].summary["difference"] == 0
     assert result.results[1].summary["open_ar_total"] > 0
     runs = ctx.memory.recall(code="ORCHESTRATION_RUN")
     assert len(runs) == 1
-    assert runs[0].entities == ["Cash & Reconciliation", "AP/AR", "Deals"]
+    assert runs[0].entities == ["Cash & Reconciliation", "AP/AR", "Deals", "Audit & Controls"]
 
 
 def test_api(client, data_dir: Path) -> None:
     specs = client.get("/api/agents").json()
-    assert [s["name"] for s in specs] == ["Cash & Reconciliation", "AP/AR", "Deals"]
+    assert [s["name"] for s in specs] == [
+        "Cash & Reconciliation",
+        "AP/AR",
+        "Deals",
+        "Audit & Controls",
+    ]
     r = client.post("/api/orchestrator/run", json={"request": "bank reconciliation Q1"})
     assert r.status_code == 200
     body = r.json()
@@ -115,7 +135,12 @@ def test_api(client, data_dir: Path) -> None:
 
 
 def test_registry_surface() -> None:
-    assert default_registry().names() == ["Cash & Reconciliation", "AP/AR", "Deals"]
+    assert default_registry().names() == [
+        "Cash & Reconciliation",
+        "AP/AR",
+        "Deals",
+        "Audit & Controls",
+    ]
 
 
 def _brief(**kw: Any):
@@ -154,7 +179,12 @@ def test_fallback_scores_signals() -> None:
     plan = orch.plan("reconcile the bank", brief=brief)
     assert {c.agent for c in plan.calls} == {"Cash & Reconciliation", "AP/AR"}
     plan = orch.plan("", brief=_brief())
-    assert {c.agent for c in plan.calls} == {"Cash & Reconciliation", "AP/AR", "Deals"}
+    assert {c.agent for c in plan.calls} == {
+        "Cash & Reconciliation",
+        "AP/AR",
+        "Deals",
+        "Audit & Controls",
+    }
 
 
 def test_consult_memory(ctx: AgentContext) -> None:
@@ -167,9 +197,9 @@ def test_consult_memory(ctx: AgentContext) -> None:
     assert set(brief.signals_by_agent) & {"AP/AR", "Cash & Reconciliation"}
     assert brief.search_hits
 
-    from app.agents.recon.agent import CashReconAgent
+    from app.agents.recon.agent import ReconAgent
 
-    CashReconAgent().run(ctx)
+    ReconAgent().run(ctx)
     brief = Orchestrator(default_registry(), NullLLM()).consult_memory(ctx, "recon")
     assert any(f["code"] == "RECON_SUMMARY" for f in brief.findings)
 

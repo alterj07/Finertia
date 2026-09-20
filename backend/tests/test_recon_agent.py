@@ -4,7 +4,7 @@ import pytest
 
 from app.agents.base import AgentContext
 from app.agents.feedback import Adjustment
-from app.agents.recon.agent import CashReconAgent
+from app.agents.recon.agent import ReconAgent
 from app.memory.graph import MemoryGraph
 
 EXPECTED_CODES = {
@@ -18,7 +18,7 @@ EXPECTED_CODES = {
 
 
 def _run(ctx: AgentContext):
-    return CashReconAgent().run(ctx, start="2026-01-01", end="2026-03-31")
+    return ReconAgent().run(ctx, start="2026-01-01", end="2026-03-31")
 
 
 def test_recon_matches_ground_truth(ctx: AgentContext) -> None:

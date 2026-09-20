@@ -12,7 +12,7 @@ from app.agents.recon.models import ReconSummary
 from app.agents.recon.rules import MatchState, RuleBook
 
 
-class CashReconAgent(Agent):
+class ReconAgent(Agent):
     name = "Cash & Reconciliation"
     description = (
         "Reconciles a period of bank activity to the GL cash account: "
