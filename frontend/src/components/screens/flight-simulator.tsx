@@ -3,17 +3,21 @@
 import { useMemo, useState } from "react";
 import { RotateCcw, Sparkles } from "lucide-react";
 import {
+  Area,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
+  ReferenceDot,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  type DotItemDotProps,
 } from "recharts";
 import { ApiError, apiFetch } from "@/lib/api";
 import { useDashboard } from "@/lib/use-dashboard";
@@ -66,6 +70,24 @@ function ImpactTooltip({ active, payload, label }: { active?: boolean; payload?:
   );
 }
 
+/** Every point rides invisible; the last one gets a permanent pulsing marker
+ * so the chart always has a "you are here" beat, not just a static line. */
+function EndpointDot(props: DotItemDotProps) {
+  const { cx, cy, index, points } = props;
+  const isLast = points ? index === points.length - 1 : false;
+  if (!isLast || cx == null || cy == null) return <g />;
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={9} fill="var(--sim)" opacity={0.28}>
+        <animate attributeName="r" values="7;11;7" dur="1.8s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.32;0.06;0.32" dur="1.8s" repeatCount="indefinite" />
+      </circle>
+      <circle cx={cx} cy={cy} r={4.5} fill="var(--sim)" stroke="var(--paper)" strokeWidth={2} />
+    </g>
+  );
+}
+
+
 export function FlightSimulatorScreen() {
   const [lever, setLever] = useState<Lever>("collections");
   const [amount, setAmount] = useState(150000);
@@ -102,6 +124,7 @@ export function FlightSimulatorScreen() {
 
   const baseFloor = Math.min(...liveCash);
   const scenarioFloor = Math.min(...scenario.map((point) => point.scenario));
+  const floorWeek = scenario.find((point) => point.scenario === scenarioFloor)?.week ?? scenario[0].week;
   const endDelta = scenario.at(-1)!.scenario - liveCash.at(-1)!;
   const floorDelta = scenarioFloor - baseFloor;
   const changes = endDelta !== 0 ? `${endDelta > 0 ? "+" : "−"}${dollars(Math.abs(endDelta))}` : "No change";
@@ -173,11 +196,76 @@ export function FlightSimulatorScreen() {
         </div>
         <section className="mt-5 border border-rule bg-paper-raised p-3 sm:p-4">
           <div className="mb-3 flex items-baseline justify-between"><div><h2 className="font-serif text-lg">Cash trajectory</h2><p className="mt-0.5 text-2xs text-ink-soft">Base plan compared with this simulation</p></div></div>
-          <div className="h-[190px] w-full"><ResponsiveContainer width="100%" height="100%"><LineChart key={scenarioKey} data={scenario} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}><CartesianGrid stroke="var(--rule-soft)" vertical={false}/><XAxis dataKey="week" tickLine={false} axisLine={{ stroke: "var(--rule)" }} tick={{ fontSize: 10, fontFamily: "var(--font-mono)", fill: "var(--ink-soft)" }}/><YAxis tickLine={false} axisLine={false} width={54} tickFormatter={(v) => `$${v}K`} tick={{ fontSize: 10, fontFamily: "var(--font-mono)", fill: "var(--ink-soft)" }}/><Tooltip content={<CustomTooltip />}/><Legend iconType="plainline" wrapperStyle={{ fontSize: 11, paddingTop: 8 }}/><Line name="Base plan" dataKey="base" stroke="var(--ink-soft)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive animationDuration={400} animationEasing="ease-out"/><Line name="Simulation" dataKey="scenario" stroke="var(--sim)" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: "var(--sim)", stroke: "var(--paper)", strokeWidth: 2 }} isAnimationActive animationDuration={400} animationEasing="ease-out"/></LineChart></ResponsiveContainer></div>
+          <div className="h-[190px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart key={scenarioKey} data={scenario} margin={{ top: 14, right: 8, left: -16, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="simFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--sim)" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="var(--sim)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="var(--rule-soft)" vertical={false} />
+                <XAxis dataKey="week" tickLine={false} axisLine={{ stroke: "var(--rule)" }} tick={{ fontSize: 10, fontFamily: "var(--font-mono)", fill: "var(--ink-soft)" }} />
+                <YAxis tickLine={false} axisLine={false} width={54} tickFormatter={(v) => `$${v}K`} tick={{ fontSize: 10, fontFamily: "var(--font-mono)", fill: "var(--ink-soft)" }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ stroke: "var(--rule)", strokeDasharray: "3 3" }} />
+                <Legend iconType="plainline" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                {floorWeek !== scenario.at(-1)!.week && (
+                  <ReferenceDot
+                    x={floorWeek}
+                    y={scenarioFloor}
+                    r={4}
+                    fill="var(--paper)"
+                    stroke="var(--rust)"
+                    strokeWidth={2}
+                    label={{ value: "Floor", position: "bottom", fill: "var(--rust)", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                  />
+                )}
+                <Line name="Base plan" dataKey="base" stroke="var(--ink-soft)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive animationDuration={500} animationEasing="ease-out" />
+                <Area
+                  name="Simulation"
+                  dataKey="scenario"
+                  stroke="var(--sim)"
+                  strokeWidth={2.5}
+                  fill="url(#simFill)"
+                  dot={EndpointDot}
+                  activeDot={{ r: 5, fill: "var(--sim)", stroke: "var(--paper)", strokeWidth: 2 }}
+                  isAnimationActive
+                  animationDuration={650}
+                  animationEasing="ease-out"
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         </section>
         <section className="mt-4 border border-rule bg-paper-raised p-3 sm:p-4">
           <div className="mb-3"><h2 className="font-serif text-lg">Weekly cash impact</h2><p className="mt-0.5 text-2xs text-ink-soft">Difference from base plan, week by week</p></div>
-          <div className="h-[160px] w-full"><ResponsiveContainer width="100%" height="100%"><BarChart key={scenarioKey} data={weeklyImpact} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}><CartesianGrid stroke="var(--rule-soft)" vertical={false}/><XAxis dataKey="week" tickLine={false} axisLine={{ stroke: "var(--rule)" }} tick={{ fontSize: 10, fontFamily: "var(--font-mono)", fill: "var(--ink-soft)" }}/><YAxis domain={["dataMin - 15", "dataMax + 15"]} tickLine={false} axisLine={false} width={54} tickFormatter={(v) => `$${v}K`} tick={{ fontSize: 10, fontFamily: "var(--font-mono)", fill: "var(--ink-soft)" }}/><Tooltip content={<ImpactTooltip />} cursor={{ fill: "var(--rule-soft)" }}/><Bar dataKey="impact" radius={[2, 2, 0, 0]} isAnimationActive animationDuration={400} animationEasing="ease-out">{weeklyImpact.map((point) => <Cell key={point.week} fill={point.impact >= 0 ? "var(--green)" : "var(--rust)"} />)}</Bar></BarChart></ResponsiveContainer></div>
+          <div className="h-[160px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart key={scenarioKey} data={weeklyImpact} margin={{ top: 20, right: 8, left: -16, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="posBar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--green)" stopOpacity={1} />
+                    <stop offset="100%" stopColor="var(--green)" stopOpacity={0.45} />
+                  </linearGradient>
+                  <linearGradient id="negBar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--rust)" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="var(--rust)" stopOpacity={1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="var(--rule-soft)" vertical={false} />
+                <XAxis dataKey="week" tickLine={false} axisLine={{ stroke: "var(--rule)" }} tick={{ fontSize: 10, fontFamily: "var(--font-mono)", fill: "var(--ink-soft)" }} />
+                <YAxis domain={["dataMin - 15", "dataMax + 15"]} tickLine={false} axisLine={false} width={54} tickFormatter={(v) => `$${v}K`} tick={{ fontSize: 10, fontFamily: "var(--font-mono)", fill: "var(--ink-soft)" }} />
+                <ReferenceLine y={0} stroke="var(--rule)" strokeWidth={1.25} />
+                <Tooltip content={<ImpactTooltip />} cursor={{ fill: "var(--rule-soft)" }} />
+                <Bar dataKey="impact" radius={[3, 3, 3, 3]} isAnimationActive animationDuration={500} animationEasing="ease-out">
+                  {weeklyImpact.map((point) => (
+                    <Cell key={point.week} fill={point.impact >= 0 ? "url(#posBar)" : "url(#negBar)"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </section>
       </div>
     </div>
