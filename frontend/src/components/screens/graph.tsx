@@ -18,8 +18,10 @@ export function GraphScreen() {
 
   return (
     <div className="stagger">
-      <DataUpload onUploaded={() => bump(null)} />
-      <AgentRunner onRan={(agent) => bump(agent)} />
+      <div className="mb-3 grid items-stretch gap-3 lg:grid-cols-[1fr_1.3fr]">
+        <DataUpload onUploaded={() => bump(null)} />
+        <AgentRunner onRan={(agent) => bump(agent)} />
+      </div>
       <GraphCanvas reloadToken={reloadToken} runInfo={runInfo} />
     </div>
   );

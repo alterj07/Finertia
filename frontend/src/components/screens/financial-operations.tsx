@@ -162,13 +162,13 @@ function ApArPanel() {
     <div className="grid gap-6 md:grid-cols-2">
       <div className="min-w-0">
         <h3 className="mb-2.5 font-serif text-base text-ink">Accounts Payable</h3>
-        <DashboardGate loading={payables.loading} error={payables.error} data={payables.data} onRan={payables.reload}>
+        <DashboardGate loading={payables.loading} refreshing={payables.refreshing} error={payables.error} data={payables.data} onRan={payables.reload}>
           {(d) => <DataTable columns={apColumns} rows={buildApRows(d)} />}
         </DashboardGate>
       </div>
       <div className="min-w-0">
         <h3 className="mb-2.5 font-serif text-base text-ink">Accounts Receivable</h3>
-        <DashboardGate loading={receivables.loading} error={receivables.error} data={receivables.data} onRan={receivables.reload}>
+        <DashboardGate loading={receivables.loading} refreshing={receivables.refreshing} error={receivables.error} data={receivables.data} onRan={receivables.reload}>
           {(d) => <DataTable columns={arColumns} rows={buildArRows(d)} />}
         </DashboardGate>
       </div>
@@ -179,7 +179,7 @@ function ApArPanel() {
 // ------------------------------------------------------------ Reconciliation
 
 function ReconciliationPanel() {
-  const { data, loading, error, reload } = useDashboard<ReconciliationData>("reconciliation");
+  const { data, loading, refreshing, error, reload } = useDashboard<ReconciliationData>("reconciliation");
   const ask = useAskCopilot();
 
   const columns: DataTableColumn<ReconRow>[] = [
@@ -197,7 +197,7 @@ function ReconciliationPanel() {
   ];
 
   return (
-    <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
+    <DashboardGate loading={loading} refreshing={refreshing} error={error} data={data} onRan={reload}>
       {(d) => <DataTable columns={columns} rows={buildReconRows(d)} emptyState="No reconciliation run yet — N/A" />}
     </DashboardGate>
   );
@@ -206,7 +206,7 @@ function ReconciliationPanel() {
 // -------------------------------------------------------------------- Close
 
 function ClosePanel() {
-  const { data, loading, error, reload } = useDashboard<CloseData>("close");
+  const { data, loading, refreshing, error, reload } = useDashboard<CloseData>("close");
 
   const columns: DataTableColumn<CloseRow>[] = [
     { key: "task", header: "Task", render: (r) => r.task },
@@ -216,7 +216,7 @@ function ClosePanel() {
   ];
 
   return (
-    <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
+    <DashboardGate loading={loading} refreshing={refreshing} error={error} data={data} onRan={reload}>
       {(d) => (
         <div>
           <div className="mb-2.5 flex items-baseline justify-between gap-3">
@@ -246,7 +246,7 @@ function ClosePanel() {
 // -------------------------------------------------------------------- Audit
 
 function AuditPanel() {
-  const { data, loading, error, reload } = useDashboard<AuditData>("audit");
+  const { data, loading, refreshing, error, reload } = useDashboard<AuditData>("audit");
   const ask = useAskCopilot();
 
   const columns: DataTableColumn<AuditRow>[] = [
@@ -263,7 +263,7 @@ function AuditPanel() {
   ];
 
   return (
-    <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
+    <DashboardGate loading={loading} refreshing={refreshing} error={error} data={data} onRan={reload}>
       {(d) => <DataTable columns={columns} rows={buildAuditRows(d)} emptyState="No control signals yet — N/A" />}
     </DashboardGate>
   );
@@ -272,7 +272,7 @@ function AuditPanel() {
 // ----------------------------------------------------------------- Forecast
 
 function ForecastPanel() {
-  const { data, loading, error, reload } = useDashboard<ForecastData>("forecast");
+  const { data, loading, refreshing, error, reload } = useDashboard<ForecastData>("forecast");
   const ask = useAskCopilot();
 
   const columns: DataTableColumn<ForecastRow>[] = [
@@ -290,7 +290,7 @@ function ForecastPanel() {
   ];
 
   return (
-    <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
+    <DashboardGate loading={loading} refreshing={refreshing} error={error} data={data} onRan={reload}>
       {(d) => <DataTable columns={columns} rows={buildForecastRows(d)} emptyState="No forecast yet — N/A" />}
     </DashboardGate>
   );

@@ -91,7 +91,7 @@ function ActivityBreakdown({ activity }: { activity: LedgerRowData[] }) {
 
 export function CommandCenterScreen() {
   const [filter, setFilter] = useState<"all" | ActionTag>("all");
-  const { data, loading, error, reload } = useDashboard<CommandCenterData>("command-center");
+  const { data, loading, refreshing, error, reload } = useDashboard<CommandCenterData>("command-center");
 
   const rows = useMemo(() => {
     const activity = data?.activity ?? [];
@@ -103,7 +103,7 @@ export function CommandCenterScreen() {
   }, [data, filter]);
 
   return (
-    <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
+    <DashboardGate loading={loading} refreshing={refreshing} error={error} data={data} onRan={reload}>
       {(d) => (
         <div className="stagger">
           <SectionBlock title="Today">

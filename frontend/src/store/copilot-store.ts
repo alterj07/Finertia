@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { ApiError, deleteChatSession, sendChat } from "@/lib/api";
 import { COPILOT_SCRIPTS } from "@/lib/config/copilot";
+import { useHighlightStore } from "@/store/highlight-store";
 import type { CopilotMessage, ModuleKey } from "@/lib/types";
 
 interface CopilotState {
@@ -99,6 +100,7 @@ export const useCopilotStore = create<CopilotState>()(
             sessionId: resp.session_id,
             messages: [...s.messages, reply],
           }));
+          useHighlightStore.getState().pulse(resp.citations);
         } catch (e) {
           const detail =
             e instanceof ApiError

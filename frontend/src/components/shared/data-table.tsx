@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useHighlightStore } from "@/store/highlight-store";
 
 export interface DataTableColumn<T> {
   key: string;
@@ -23,6 +24,35 @@ export function DataTable<T extends { id: string }>({
   emptyState?: string;
   onRowClick?: (row: T) => void;
 }) {
+  const highlightIds = useHighlightStore((s) => s.ids);
+  const highlightToken = useHighlightStore((s) => s.token);
+  const [flashing, setFlashing] = useState<Set<string>>(new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightToken === 0) return;
+    let clearTimer: ReturnType<typeof setTimeout> | undefined;
+    // rAF: let this render's rows commit to the DOM first, so the
+    // data-row-id query below actually finds the target.
+    const raf = requestAnimationFrame(() => {
+      const matches = rows.filter((r) => highlightIds.has(r.id));
+      if (matches.length === 0) return;
+      setFlashing(new Set(matches.map((r) => r.id)));
+      const el = containerRef.current?.querySelector(
+        `[data-row-id="${CSS.escape(matches[0].id)}"]`,
+      );
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      clearTimer = setTimeout(() => setFlashing(new Set()), 2200);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      if (clearTimer) clearTimeout(clearTimer);
+    };
+    // Only the token should retrigger this — `rows`/`highlightIds` change on
+    // every render otherwise and would replay the flash.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightToken]);
+
   if (rows.length === 0) {
     return (
       <div className="border-t-[1.5px] border-ink py-6">
@@ -37,7 +67,7 @@ export function DataTable<T extends { id: string }>({
   const minWidth = Math.max(320, columns.length * 100);
 
   return (
-    <div className="scroll-thin overflow-x-auto border-t-[1.5px] border-ink">
+    <div ref={containerRef} className="scroll-thin overflow-x-auto border-t-[1.5px] border-ink">
       <table className="w-full border-collapse text-left" style={{ minWidth }}>
         <thead>
           <tr className="border-b border-rule-soft">
@@ -59,10 +89,12 @@ export function DataTable<T extends { id: string }>({
           {rows.map((row) => (
             <tr
               key={row.id}
+              data-row-id={row.id}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               className={cn(
                 "border-b border-rule-soft last:border-b-0",
                 onRowClick && "cursor-pointer hover:bg-paper-raised",
+                flashing.has(row.id) && "animate-row-flash",
               )}
             >
               {columns.map((c) => (

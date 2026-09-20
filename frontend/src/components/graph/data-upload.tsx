@@ -199,7 +199,7 @@ export function DataUpload({ onUploaded }: { onUploaded: () => void }) {
   const busy = state.status === "validating" || state.status === "uploading";
 
   return (
-    <div className="mb-3 border border-rule bg-paper-raised px-3 py-2">
+    <div className="flex h-full flex-col border border-rule bg-paper-raised px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-2xs uppercase tracking-wide text-ink-soft">
           Upload data

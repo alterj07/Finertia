@@ -17,7 +17,7 @@ import { zoom as d3zoom, zoomIdentity, type ZoomTransform } from "d3-zoom";
 import { fetchGraphView } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useCopilotStore } from "@/store/copilot-store";
-import type { GraphView } from "@/lib/types";
+import type { GraphGroup, GraphView } from "@/lib/types";
 import {
   GROUP_COLOR,
   GROUP_LABEL,
@@ -39,6 +39,19 @@ export interface RunInfo {
   agent: string;
   token: number;
 }
+
+// Whole-word mentions of a category (rather than one specific node) — the
+// chatbot saying "the reconciliation" or "AP/AR" should still zoom the graph
+// to that neighbourhood, not just exact node ids.
+const GROUP_KEYWORDS: [RegExp, GraphGroup][] = [
+  [/\breconciliations?\b/i, "reconciliation"],
+  [/\bpayables?\b|\bAP\/AR\b/i, "payables"],
+  [/\breceivables?\b/i, "receivables"],
+  [/\bclose\b|\bclosing\b/i, "close"],
+  [/\bforecasts?\b/i, "forecast"],
+  [/\baudits?\b/i, "audit"],
+  [/\bagents?\b/i, "agent"],
+];
 
 // SVG labels are capped at 24 chars; the full label stays on the node for
 // the <title> tooltip, the detail panel and chat matching.
@@ -98,6 +111,10 @@ export function GraphCanvas({
   // it produced no new nodes (the data was already up to date).
   const [notice, setNotice] = useState<{ text: string; tone: "gold" | "neutral" } | null>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A whole category the chatbot just mentioned (no specific node) — dims
+  // everything else briefly so the relevant cluster stands out.
+  const [spotlightIds, setSpotlightIds] = useState<Set<string> | null>(null);
+  const spotlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function showNotice(text: string, tone: "gold" | "neutral") {
     if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
@@ -110,6 +127,7 @@ export function GraphCanvas({
   useEffect(() => {
     return () => {
       if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+      if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
     };
   }, []);
 
@@ -566,11 +584,7 @@ export function GraphCanvas({
     if (!last || last.id === lastSeenMsgRef.current) return;
     lastSeenMsgRef.current = last.id;
 
-    let ids: string[] = [];
-    if (last.role === "agent") {
-      ids = (last.citations ?? []).map((c) => c.label);
-    } else {
-      const text = last.text;
+    function matchIdsInText(text: string): string[] {
       const scored: { id: string; at: number; exact: boolean }[] = [];
       for (const n of chatLookup) {
         const esc = n.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -596,16 +610,44 @@ export function GraphCanvas({
         }
       }
       scored.sort((a, b) => Number(b.exact) - Number(a.exact) || a.at - b.at);
-      ids = [...new Set(scored.map((s) => s.id))];
+      return [...new Set(scored.map((s) => s.id))];
     }
-    if (!ids.length) return;
+
+    const ids =
+      last.role === "agent"
+        ? [...new Set([...(last.citations ?? []).map((c) => c.label), ...matchIdsInText(last.text)])]
+        : matchIdsInText(last.text);
+
     const known = ids.filter((id) => view.nodes.some((n) => n.id === id)
       || Object.values(view.expansions).some((e) => e.nodes.some((n) => n.id === id)));
-    if (!known.length) return;
+
+    if (known.length) {
+      // Replacing the spotlight outright — safe to drop any pending clear.
+      if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
+      const raf = requestAnimationFrame(() => {
+        setSpotlightIds(null);
+        revealNode(known[0]);
+        zoomToNodes(known);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+
+    // No specific node — but a whole category ("reconciliation", "the
+    // agents", …) mentioned anywhere in the message still zooms & dims the
+    // rest, so a category-level answer still moves the graph. An unrelated
+    // message in between (e.g. the reply that follows) must NOT cancel an
+    // already-scheduled clear without rescheduling one, or the spotlight
+    // would stay stuck forever.
+    const matchedGroup = GROUP_KEYWORDS.find(([pattern]) => pattern.test(last.text))?.[1];
+    if (!matchedGroup) return;
+    const groupIds = view.nodes.filter((n) => n.group === matchedGroup).map((n) => n.id);
+    if (!groupIds.length) return;
+    if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
     const raf = requestAnimationFrame(() => {
-      revealNode(known[0]);
-      zoomToNodes(known);
+      setSpotlightIds(new Set(groupIds));
+      zoomToNodes(groupIds);
     });
+    spotlightTimerRef.current = setTimeout(() => setSpotlightIds(null), 5000);
     return () => cancelAnimationFrame(raf);
   }, [chatMessages, view, chatLookup, revealNode]);
 
@@ -658,6 +700,9 @@ export function GraphCanvas({
     return set;
   }, [focusId, linksSnapshot]);
 
+  // A category the chatbot just mentioned — hover/select always wins over it.
+  const spotlightActive = !focusId && !!spotlightIds && spotlightIds.size > 0;
+
   const selectedNode = selectedId ? (nodesSnapshot.find((n) => n.id === selectedId) ?? null) : null;
   const selectedConnections = useMemo(() => {
     if (!selectedNode) return [];
@@ -709,7 +754,8 @@ export function GraphCanvas({
                 const sId = linkEndpointId(l.source);
                 const tId = linkEndpointId(l.target);
                 const connected = focusId != null && (sId === focusId || tId === focusId);
-                const dimmed = focusId != null && !connected;
+                const spotlightConnected = spotlightActive && (spotlightIds!.has(sId) || spotlightIds!.has(tId));
+                const dimmed = focusId != null ? !connected : spotlightActive ? !spotlightConnected : false;
                 const isFresh = fresh.links.has(`${sId}->${tId}`) || fresh.links.has(`${tId}->${sId}`);
                 return (
                   <line
@@ -730,7 +776,10 @@ export function GraphCanvas({
                 if (node.x == null || node.y == null) return null;
                 const degree = degrees.get(node.id) ?? 0;
                 const radius = nodeRadius(node, degree);
-                const dimmed = !!focusId && !focusNeighbors?.has(node.id) && !node.isAgent;
+                const isSpotlighted = spotlightActive && spotlightIds!.has(node.id);
+                const dimmed = focusId
+                  ? !focusNeighbors?.has(node.id) && !node.isAgent
+                  : spotlightActive && !isSpotlighted;
                 const isFocused = focusId === node.id;
                 const isNeighbor = !!focusId && focusNeighbors?.has(node.id) && !isFocused;
                 const isFresh = fresh.nodes.has(node.id);
@@ -769,13 +818,18 @@ export function GraphCanvas({
                     }}
                     className="graph-node cursor-pointer select-none outline-none"
                     data-focus={
-                      isFocused ? "focused" : isNeighbor ? "neighbor" : dimmed ? "dim" : undefined
+                      isFocused ? "focused" : isNeighbor ? "neighbor" : isSpotlighted ? "spotlight" : dimmed ? "dim" : undefined
                     }
                     data-touched={isTouched || undefined}
                   >
                     <title>{node.label}</title>
                     {isFresh && (
                       <circle r={radius + 6} fill="var(--gold)" opacity={0.25}>
+                        <animate attributeName="r" values={`${radius + 4};${radius + 9};${radius + 4}`} dur="1.6s" repeatCount="indefinite" />
+                      </circle>
+                    )}
+                    {isSpotlighted && !isFresh && (
+                      <circle r={radius + 6} fill="var(--blue)" opacity={0.25}>
                         <animate attributeName="r" values={`${radius + 4};${radius + 9};${radius + 4}`} dur="1.6s" repeatCount="indefinite" />
                       </circle>
                     )}
