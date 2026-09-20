@@ -1,5 +1,6 @@
-import { AuditScreen } from "@/components/screens/audit";
+import { redirect } from "next/navigation";
 
+// Audit & Controls was folded into Financial Operations' Audit tab.
 export default function Audit() {
-  return <AuditScreen />;
+  redirect("/financial-operations?tab=audit");
 }

@@ -6,11 +6,6 @@ export const ENTITIES = ["Lumen Robotics"];
 export const PERIODS = ["FY26 · Q1"];
 
 interface AppState {
-  isDark: boolean;
-  setDark: (dark: boolean) => void;
-  toggleDark: () => void;
-  syncDarkFromDocument: () => void;
-
   entity: string;
   setEntity: (entity: string) => void;
 
@@ -24,37 +19,6 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  isDark: false,
-  setDark: (dark) => {
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.toggle("dark", dark);
-      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-      try {
-        localStorage.setItem("finertia-theme", dark ? "dark" : "light");
-      } catch {
-        // ignore
-      }
-    }
-    set({ isDark: dark });
-  },
-  syncDarkFromDocument: () => {
-    if (typeof document === "undefined") return;
-    set({ isDark: document.documentElement.classList.contains("dark") });
-  },
-  toggleDark: () => set((s) => {
-    const next = !s.isDark;
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.toggle("dark", next);
-      document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
-      try {
-        localStorage.setItem("finertia-theme", next ? "dark" : "light");
-      } catch {
-        // ignore
-      }
-    }
-    return { isDark: next };
-  }),
-
   entity: ENTITIES[0],
   setEntity: (entity) => set({ entity }),
 

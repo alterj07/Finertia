@@ -34,8 +34,8 @@ export default function InvoiceDetail() {
 
   return (
     <div>
-      <Link href="/payables" className="text-xs text-ink-soft underline decoration-rule underline-offset-2 hover:text-ink">
-        ← Back to Payables
+      <Link href="/financial-operations?tab=ap-ar" className="text-xs text-ink-soft underline decoration-rule underline-offset-2 hover:text-ink">
+        ← Back to Financial Operations
       </Link>
 
       {loading && <p className="mt-4 text-sm text-ink-soft">Loading…</p>}
@@ -50,7 +50,7 @@ export default function InvoiceDetail() {
           <div className="mt-4 flex items-start gap-3">
             {row.tag && <StatusTag tag={row.tag} className="mt-1" />}
             <div>
-              <h1 className="font-serif text-2xl leading-tight text-ink">{row.primary}</h1>
+              <h1 className="font-serif text-[32px] leading-tight text-ink">{row.primary}</h1>
               {row.secondary && <p className="mt-1 text-sm text-ink-soft">{row.secondary}</p>}
             </div>
           </div>

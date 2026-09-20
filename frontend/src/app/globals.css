@@ -1,54 +1,23 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
 /* ---------------------------------------------------------------------- */
 /* Finertia design tokens — physical ledger, not SaaS dashboard.           */
 /* See frontend.txt Section 2. Do not reach for default component-kit     */
 /* styling; these tokens are load-bearing for the brand.                   */
+/* One theme only — no light/dark toggle.                                 */
 /* ---------------------------------------------------------------------- */
 
 :root {
-  --paper: #f6f4ee;
-  --paper-raised: #fbfaf6;
-  --ink: #171b1f;
-  --ink-soft: #5b5f5a;
-  --rule: #d8d3c7;
-  --rule-soft: #e7e3d8;
-
-  --green: #1f5f4a;
-  --green-soft: #e4ede8;
-  --gold: #8a6a1e;
-  --gold-soft: #f1e9d4;
-  --rust: #a6412a;
-  --rust-soft: #f3e2dc;
-  --blue: #2c4a6e;
-  --blue-soft: #e1e7ee;
-  --forecast: #6e5a9e;
-  --forecast-soft: #e8e4f1;
-
-  --rail-bg: #eeebe3;
-  --rail-fg: var(--ink);
-  --rail-fg-soft: var(--ink-soft);
-  --rail-fg-faint: rgba(23, 27, 31, 0.45);
-  --rail-hover: rgba(23, 27, 31, 0.05);
-  --rail-active: rgba(23, 27, 31, 0.09);
-  --rail-border: var(--rule);
-
-  --shadow-color: 23 27 31;
-}
-
-.dark {
-  --paper: #14181b;
-  --paper-raised: #1b2023;
+  --paper: #1f2924;
+  --paper-raised: #24312b;
   --ink: #edeae2;
   --ink-soft: #9a9c94;
-  --rule: #333833;
-  --rule-soft: #262b26;
+  --rule: #313b35;
+  --rule-soft: #27302b;
 
-  --green: #3d8a6f;
-  --green-soft: #1b2c25;
+  --green: #52c89f;
+  --green-soft: #1a3028;
   --gold: #c69a3d;
   --gold-soft: #2a2418;
   --rust: #d1725a;
@@ -57,14 +26,18 @@
   --blue-soft: #1b242e;
   --forecast: #a191c9;
   --forecast-soft: #241f33;
+  --sim: #a6d36e;
+  --sim-soft: #26301a;
 
-  --rail-bg: #0c1012;
+  --rail-bg: #161d19;
   --rail-fg: #ffffff;
   --rail-fg-soft: rgba(255, 255, 255, 0.7);
   --rail-fg-faint: rgba(255, 255, 255, 0.45);
-  --rail-hover: rgba(255, 255, 255, 0.04);
-  --rail-active: rgba(255, 255, 255, 0.08);
+  --rail-hover: rgba(82, 200, 159, 0.08);
+  --rail-active: rgba(82, 200, 159, 0.16);
   --rail-border: rgba(255, 255, 255, 0.06);
+
+  --shadow-color: 23 27 31;
 }
 
 @theme inline {
@@ -85,6 +58,8 @@
   --color-blue-soft: var(--blue-soft);
   --color-forecast: var(--forecast);
   --color-forecast-soft: var(--forecast-soft);
+  --color-sim: var(--sim);
+  --color-sim-soft: var(--sim-soft);
 
   --color-rail-bg: var(--rail-bg);
   --color-rail-fg: var(--rail-fg);
@@ -125,36 +100,6 @@
   }
   to {
     opacity: 1;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #14181b;
-    --paper-raised: #1b2023;
-    --ink: #edeae2;
-    --ink-soft: #9a9c94;
-    --rule: #333833;
-    --rule-soft: #262b26;
-
-    --green: #3d8a6f;
-    --green-soft: #1b2c25;
-    --gold: #c69a3d;
-    --gold-soft: #2a2418;
-    --rust: #d1725a;
-    --rust-soft: #2e1e1a;
-    --blue: #6f93bd;
-    --blue-soft: #1b242e;
-    --forecast: #a191c9;
-    --forecast-soft: #241f33;
-
-    --rail-bg: #0c1012;
-    --rail-fg: #ffffff;
-    --rail-fg-soft: rgba(255, 255, 255, 0.7);
-    --rail-fg-faint: rgba(255, 255, 255, 0.45);
-    --rail-hover: rgba(255, 255, 255, 0.04);
-    --rail-active: rgba(255, 255, 255, 0.08);
-    --rail-border: rgba(255, 255, 255, 0.06);
   }
 }
 
@@ -200,7 +145,7 @@ body {
 
 /* Visible focus ring everywhere — never suppress outline without replacement */
 :focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--green);
   outline-offset: 2px;
 }
 

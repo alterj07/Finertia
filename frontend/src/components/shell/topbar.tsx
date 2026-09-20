@@ -2,13 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, MessageSquare, Moon, Sun } from "lucide-react";
+import { Menu, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MODULE_TITLES } from "@/lib/config/nav";
 import { pathToModule } from "@/lib/route";
 import { ENTITIES, PERIODS, useAppStore } from "@/store/app-store";
-
-const AS_OF = "As of 2026-03-31";
 
 function useOutsideClick(onOutside: () => void) {
   const ref = useRef<HTMLDivElement>(null);
@@ -88,17 +86,8 @@ export function Topbar() {
   const setEntity = useAppStore((s) => s.setEntity);
   const period = useAppStore((s) => s.period);
   const setPeriod = useAppStore((s) => s.setPeriod);
-  const isDark = useAppStore((s) => s.isDark);
-  const toggleDark = useAppStore((s) => s.toggleDark);
   const setLeftRailOpen = useAppStore((s) => s.setLeftRailOpen);
   const setCopilotOpen = useAppStore((s) => s.setCopilotOpen);
-  const syncDarkFromDocument = useAppStore((s) => s.syncDarkFromDocument);
-
-  // The layout's inline script may have applied dark mode (stored or system
-  // preference) before React ran; align the store so the toggle flips once.
-  useEffect(() => {
-    syncDarkFromDocument();
-  }, [syncDarkFromDocument]);
 
   return (
     <header
@@ -115,8 +104,7 @@ export function Topbar() {
           <Menu size={19} />
         </button>
         <div className="flex min-w-0 items-baseline gap-2.5">
-          <h1 className="truncate font-serif text-xl text-ink">{MODULE_TITLES[moduleKey]}</h1>
-          <span className="hidden shrink-0 text-sm text-ink-soft sm:inline">{AS_OF}</span>
+          <h1 className="truncate font-serif text-[32px] text-ink">{MODULE_TITLES[moduleKey]}</h1>
         </div>
       </div>
 
@@ -127,14 +115,6 @@ export function Topbar() {
         <div className="hidden sm:block">
           <PickerDropdown value={period} options={PERIODS} onChange={setPeriod} mono />
         </div>
-        <button
-          type="button"
-          onClick={toggleDark}
-          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          className="rounded-sm p-1.5 text-ink-soft hover:bg-paper-raised hover:text-ink"
-        >
-          {isDark ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
         <button
           type="button"
           onClick={() => setCopilotOpen(true)}

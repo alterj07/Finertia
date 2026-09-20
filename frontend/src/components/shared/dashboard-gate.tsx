@@ -87,7 +87,7 @@ export function DashboardGate<T extends NeedsRun>({
             type="button"
             disabled={running}
             onClick={() => handleRun(data.run_request ?? "Close the books for Q1")}
-            className="inline-flex items-center gap-1.5 rounded-chip border border-ink bg-ink px-2.5 py-1 text-xs text-paper hover:bg-ink/85 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-chip border border-green bg-green px-2.5 py-1 text-xs text-paper hover:bg-green/85 disabled:opacity-50"
           >
             {running ? (
               <Loader2 size={12} className="animate-spin" aria-hidden />

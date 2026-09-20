@@ -1,5 +1,6 @@
-import { PayablesScreen } from "@/components/screens/payables";
+import { redirect } from "next/navigation";
 
+// Payables was folded into Financial Operations' AP/AR tab.
 export default function Payables() {
-  return <PayablesScreen />;
+  redirect("/financial-operations?tab=ap-ar");
 }

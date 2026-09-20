@@ -58,10 +58,10 @@ export function LeftRail() {
       >
         <div className="flex h-16 shrink-0 items-center gap-3 px-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center" aria-hidden>
-            <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
+            <Image src="/logo.png" alt="" width={32} height={32} className="h-8 w-8 object-contain" />
           </span>
           <div className={fade}>
-            <div className="font-serif text-[21px] font-semibold leading-none text-rail-fg">Finertia</div>
+            <div className="font-serif text-[24px] font-semibold leading-none text-rail-fg">Finertia</div>
           </div>
           <button
             type="button"
@@ -94,12 +94,12 @@ export function LeftRail() {
                       e.currentTarget.blur();
                     }}
                     className={cn(
-                      "flex h-10 items-center gap-3 rounded-md text-sm text-rail-fg-soft transition-colors hover:bg-rail-hover hover:text-rail-fg",
+                      "flex h-10 items-center gap-3 rounded-md text-md text-rail-fg-soft transition-colors hover:bg-rail-hover hover:text-rail-fg",
                       active && "bg-rail-active text-rail-fg",
                     )}
                   >
                     <span className="relative flex h-10 w-10 shrink-0 items-center justify-center">
-                      <Icon size={18} aria-hidden />
+                      <Icon size={20} aria-hidden />
                       {item.needsAttention && (
                         <span
                           className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-gold"
@@ -110,7 +110,7 @@ export function LeftRail() {
                     <span className={cn("flex flex-1 items-center gap-2", fade)}>
                       <span className="flex-1 truncate">{item.label}</span>
                       {typeof item.count === "number" && (
-                        <span className="font-mono text-2xs text-rail-fg-faint">{item.count}</span>
+                        <span className="font-mono text-xs text-rail-fg-faint">{item.count}</span>
                       )}
                     </span>
                   </Link>

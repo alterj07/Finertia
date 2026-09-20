@@ -192,7 +192,7 @@ export function CopilotRail() {
           <button
             type="submit"
             aria-label="Send"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-paper hover:bg-ink/85 disabled:opacity-40"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green text-paper hover:bg-green/85 disabled:opacity-40"
             disabled={!input.trim() || pending}
           >
             <ArrowUp size={15} />

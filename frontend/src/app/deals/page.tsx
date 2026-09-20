@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// Deals was folded into the Close screen; send old links there.
+// Deals was folded into Financial Operations' Close tab.
 export default function Deals() {
-  redirect("/close");
+  redirect("/financial-operations?tab=close");
 }

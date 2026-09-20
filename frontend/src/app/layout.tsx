@@ -27,32 +27,12 @@ export const metadata: Metadata = {
   description: "Your books, run by agents you can audit.",
 };
 
-const THEME_INIT_SCRIPT = `
-(function () {
-  try {
-    var stored = localStorage.getItem("finertia-theme");
-    if (stored === "dark") {
-      document.documentElement.classList.add("dark");
-      document.documentElement.setAttribute("data-theme", "dark");
-    } else if (stored === "light") {
-      document.documentElement.setAttribute("data-theme", "light");
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      document.documentElement.classList.add("dark");
-    }
-  } catch (e) {}
-})();
-`;
-
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${newsreader.variable} ${inter.variable} ${plexMono.variable} h-full`}
-      suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body className="h-full overflow-hidden font-sans antialiased">
         <AppShell>{children}</AppShell>
       </body>
