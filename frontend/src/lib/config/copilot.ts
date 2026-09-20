@@ -2,8 +2,7 @@ import type { ModuleCopilotScript, ModuleKey } from "@/lib/types";
 
 export const COPILOT_SCRIPTS: Record<ModuleKey, ModuleCopilotScript> = {
   "command-center": {
-    opening:
-      "I'm Finertia. I answer from the shared memory graph and cite the bank lines, journal entries, invoices and emails I used. Ask about any number, or ask me to run the reconciliation.",
+    opening: "Let me know if you have any questions!",
     openingCitations: [],
     suggestions: [
       "What findings are open right now?",

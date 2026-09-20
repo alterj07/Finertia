@@ -8,7 +8,6 @@ export interface NavItem {
   href: string;
   icon: LucideIcon;
   count?: number;
-  needsAttention?: boolean;
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -18,7 +17,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Financial Operations",
     href: "/financial-operations",
     icon: Landmark,
-    needsAttention: true,
   },
   { key: "flight-simulator", label: "Flight Simulator", href: "/flight-simulator", icon: Plane },
   { key: "graph", label: "Data Graph", href: "/graph", icon: Waypoints },

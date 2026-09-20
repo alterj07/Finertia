@@ -9,7 +9,7 @@ router = APIRouter(tags=["flight-simulator"])
 
 
 class SimulationRequest(BaseModel):
-    lever: str = Field(pattern="^(collections|payables|opex)$")
+    lever: str = Field(pattern="^(collections|payables|opex|debt|capex)$")
     amount: float = Field(gt=0, le=10_000_000)
     timing_days: int = Field(ge=0, le=90)
     cash_delta: float

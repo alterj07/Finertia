@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { KpiRow } from "@/components/shared/kpi-row";
 import { Ledger } from "@/components/shared/ledger";
@@ -119,20 +120,25 @@ export function CommandCenterScreen() {
               </div>
             }
           >
-            <div className="grid gap-4 md:grid-cols-[1fr_200px]">
+            <div className="grid gap-4 md:grid-cols-[1fr_200px] md:items-start">
               <Ledger rows={rows} emptyState="No data source yet — N/A" />
-              <ActivityBreakdown activity={data?.activity ?? []} />
-            </div>
-          </SectionBlock>
-
-          <SectionBlock
-            title="Close status"
-            action={{ label: "View full close checklist", href: "/financial-operations?tab=close" }}
-          >
-            <div className="border border-rule bg-paper-raised px-4">
-              {d.checklist.map((item) => (
-                <ChecklistRow key={item.id} item={item} />
-              ))}
+              <div className="flex flex-col gap-4">
+                <ActivityBreakdown activity={data?.activity ?? []} />
+                <div className="border border-rule bg-paper-raised p-3">
+                  <div className="mb-2 flex items-baseline justify-between gap-2">
+                    <h3 className="font-serif text-sm text-ink">Close status</h3>
+                    <Link
+                      href="/financial-operations?tab=close"
+                      className="text-2xs text-ink-soft underline decoration-rule underline-offset-2 hover:text-ink"
+                    >
+                      View full
+                    </Link>
+                  </div>
+                  {d.checklist.map((item) => (
+                    <ChecklistRow key={item.id} item={item} />
+                  ))}
+                </div>
+              </div>
             </div>
           </SectionBlock>
         </div>

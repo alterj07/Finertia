@@ -325,12 +325,12 @@ function FinancialOperationsInner() {
       />
 
       <Tabs.Root value={tab} onValueChange={(v) => goTo(v as TabKey)}>
-        <Tabs.List className="flex gap-1 px-1">
+        <Tabs.List className="flex w-full gap-1 px-1">
           {TABS.map((t) => (
             <Tabs.Tab
               key={t.key}
               value={t.key}
-              className="rounded-t-lg px-4 py-2.5 text-sm text-ink-soft transition-colors hover:text-ink aria-selected:bg-black/25 aria-selected:font-medium aria-selected:text-ink"
+              className="flex-1 rounded-t-lg px-4 py-2.5 text-center text-sm whitespace-nowrap text-ink-soft transition-colors hover:text-ink aria-selected:bg-black/25 aria-selected:font-medium aria-selected:text-ink"
             >
               {t.label}
             </Tabs.Tab>

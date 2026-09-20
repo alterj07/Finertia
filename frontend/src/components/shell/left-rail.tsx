@@ -100,12 +100,6 @@ export function LeftRail() {
                   >
                     <span className="relative flex h-10 w-10 shrink-0 items-center justify-center">
                       <Icon size={20} aria-hidden />
-                      {item.needsAttention && (
-                        <span
-                          className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-gold"
-                          aria-hidden
-                        />
-                      )}
                     </span>
                     <span className={cn("flex flex-1 items-center gap-2", fade)}>
                       <span className="flex-1 truncate">{item.label}</span>
