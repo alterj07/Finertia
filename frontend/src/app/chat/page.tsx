@@ -17,14 +17,13 @@ import {
   sendChat,
   MemoryStats,
 } from "@/lib/api";
+import { ChatText } from "@/components/shared/chat-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-
-const CITE_RE = /\[([^\[\]]+)\]/g;
 
 function AssistantText({
   content,
@@ -33,26 +32,7 @@ function AssistantText({
   content: string;
   onCite: (id: string) => void;
 }) {
-  const parts: React.ReactNode[] = [];
-  let last = 0;
-  let m: RegExpExecArray | null;
-  const re = new RegExp(CITE_RE);
-  while ((m = re.exec(content))) {
-    if (m.index > last) parts.push(content.slice(last, m.index));
-    const id = m[1];
-    parts.push(
-      <button
-        key={`${m.index}-${id}`}
-        onClick={() => onCite(id)}
-        className="text-primary bg-primary/10 hover:bg-primary/20 mx-0.5 rounded px-1 font-mono text-xs"
-      >
-        {id}
-      </button>,
-    );
-    last = m.index + m[0].length;
-  }
-  parts.push(content.slice(last));
-  return <p className="text-sm whitespace-pre-wrap">{parts}</p>;
+  return <ChatText text={content} onCite={onCite} />;
 }
 
 function ToolBadges({ events }: { events: ToolEvent[] }) {

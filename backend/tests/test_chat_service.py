@@ -162,3 +162,26 @@ def test_max_steps_exhausted(service) -> None:
     )
     resp = _svc(tools, sessions, llm, max_steps=1).respond(None, "loop")
     assert "ran out of steps" in resp.message.content
+
+
+def test_system_prompt_readability_rules() -> None:
+    from app.chat.service import SYSTEM_PROMPT
+
+    assert "Hard limit 120 words" in SYSTEM_PROMPT
+
+
+def test_chat_passes_max_tokens(service) -> None:
+    ctx, sessions, tools = service
+
+    class KwargsLLM(ScriptedLLM):
+        def __init__(self, turns):
+            super().__init__(turns)
+            self.kwargs: list[dict] = []
+
+        def chat(self, messages, tools=None, **kw):
+            self.kwargs.append(dict(kw))
+            return super().chat(messages, tools, **kw)
+
+    llm = KwargsLLM([ChatTurn(content="done")])
+    _svc(tools, sessions, llm).respond(None, "hi")
+    assert llm.kwargs and llm.kwargs[0].get("max_tokens") == 450

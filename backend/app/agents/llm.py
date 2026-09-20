@@ -83,7 +83,11 @@ class OpenAIProvider:
         return resp.choices[0].message.content or ""
 
     def chat(
-        self, messages: list[dict], tools: list[dict] | None = None, **kw: Any
+        self,
+        messages: list[dict],
+        tools: list[dict] | None = None,
+        max_tokens: int | None = None,
+        **kw: Any,
     ) -> ChatTurn:
         resp = self._client.chat.completions.create(
             model=self.model,
@@ -91,6 +95,7 @@ class OpenAIProvider:
             tools=tools or self._not_given,
             tool_choice="auto" if tools else self._not_given,
             temperature=0,
+            max_tokens=max_tokens if max_tokens is not None else self._not_given,
         )
         msg = resp.choices[0].message
         calls = []

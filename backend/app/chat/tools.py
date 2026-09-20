@@ -57,6 +57,50 @@ _NUMBER_WORDS = {
 }
 _TOKEN = re.compile(r"[a-z0-9]+")
 
+_SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+
+
+def _shorten(s: str, n: int) -> str:
+    s = s or ""
+    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+
+
+def _compact_data(d, max_items: int = 10, max_str: int = 80):
+    """Shrink a finding's data payload for tool output: keep keys, truncate
+    long lists/strings, and flatten nested rows to their first few keys."""
+    if isinstance(d, dict):
+        return {k: _compact_data(v, max_items, max_str) for k, v in d.items()}
+    if isinstance(d, list):
+        items = [
+            (
+                {k: _compact_data(v, max_items, max_str) for k, v in list(x.items())[:4]}
+                if isinstance(x, dict)
+                else _compact_data(x, max_items, max_str)
+            )
+            for x in d[:max_items]
+        ]
+        if len(d) > max_items:
+            items.append(f"…(+{len(d) - max_items} more)")
+        return items
+    if isinstance(d, str):
+        return _shorten(d, max_str)
+    return d
+
+
+def _finding_sort(f) -> tuple[int, float]:
+    return (_SEVERITY_ORDER.get(f.severity, 5), -(abs(f.amount or 0)))
+
+
+def _headline(agent: str, findings: list) -> str:
+    by_code = {f.code: f for f in findings}
+    if "Cash & Reconciliation" in agent and "RECON_SUMMARY" in by_code:
+        return by_code["RECON_SUMMARY"].title
+    if "AP/AR" in agent:
+        for code in ("AR_AGING", "PAYMENT_RUN"):
+            if code in by_code:
+                return by_code[code].title
+    return findings[0].title if findings else ""
+
 
 def _normalise_query(query: str) -> str:
     """'three invoices' -> '3 invoices': number words become digits so they
@@ -131,7 +175,7 @@ def build_tools(
         c = g.context(nid, depth=depth)
         node_ids = [n["id"] for n in c["nodes"]]
         return {
-            "text": c["text"],
+            "text": _shorten(c["text"], 2500),
             "node_ids": node_ids,
             "findings": [
                 {"code": f["code"], "key": f["key"], "title": f["title"], "amount": f["amount"]}
@@ -142,18 +186,22 @@ def build_tools(
 
     def get_findings(code: str | None = None, agent: str | None = None) -> dict[str, Any]:
         findings = g.recall(code=code, agent=agent)
+        if code is None:
+            findings = sorted(findings, key=_finding_sort)
+        findings = findings[:25]
         return {
             "findings": [
                 {
                     "code": f.code,
                     "key": f.key,
                     "title": f.title,
-                    "detail": f.detail,
+                    "detail": _shorten(f.detail, 160),
                     "severity": f.severity,
                     "amount": f.amount,
                     "entities": f.entities,
                     "evidence": f.evidence,
                     "node_id": f"finding:{f.code}:{f.key}",
+                    **({"data": _compact_data(f.data)} if f.data else {}),
                 }
                 for f in findings
             ],
@@ -180,13 +228,25 @@ def build_tools(
         request: str, defaults: dict | None = None
     ) -> dict[str, Any]:
         result = orchestrator.run(ctx, request, defaults=defaults)
+        blockers = [
+            f.title
+            for r in result.results
+            for f in r.findings
+            if f.severity in ("critical", "high")
+        ][:3]
         return {
-            "plan": result.plan.model_dump(),
+            "ran": [r.agent for r in result.results],
+            "planner": result.plan.planner,
             "results": [
                 {
                     "agent": r.agent,
-                    "summary": {k: v for k, v in r.summary.items() if k != "matches"},
-                    "findings": [
+                    "findings_count": len(r.findings),
+                    "by_severity": {
+                        sev: sum(1 for f in r.findings if f.severity == sev)
+                        for sev in _SEVERITY_ORDER
+                        if any(f.severity == sev for f in r.findings)
+                    },
+                    "top": [
                         {
                             "code": f.code,
                             "key": f.key,
@@ -194,11 +254,13 @@ def build_tools(
                             "amount": f.amount,
                             "severity": f.severity,
                         }
-                        for f in r.findings
+                        for f in sorted(r.findings, key=_finding_sort)[:3]
                     ],
+                    "headline": _headline(r.agent, r.findings),
                 }
                 for r in result.results
             ],
+            "blockers": blockers,
             "citations": [
                 f"finding:{f.code}:{f.key}" for r in result.results for f in r.findings
             ],

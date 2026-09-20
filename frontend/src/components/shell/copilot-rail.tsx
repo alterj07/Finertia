@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ChatText } from "@/components/shared/chat-text";
 import { COPILOT_SCRIPTS } from "@/lib/config/copilot";
 import { useAppStore } from "@/store/app-store";
 import { useCopilotStore } from "@/store/copilot-store";
@@ -21,8 +23,10 @@ export function CopilotRail() {
   const pendingDraft = useCopilotStore((s) => s.pendingDraft);
   const clearPendingDraft = useCopilotStore((s) => s.clearPendingDraft);
 
+  const router = useRouter();
   const [input, setInput] = useState("");
   const [consumedDraft, setConsumedDraft] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -76,7 +80,19 @@ export function CopilotRail() {
             m.role === "agent" ? (
               <div key={m.id} className="max-w-[70ch]">
                 <div className="mb-1 font-mono text-2xs tracking-wide text-ink-soft">FINERTIA</div>
-                <p className="text-sm leading-relaxed text-ink">{m.text}</p>
+                <ChatText
+                  text={m.text.length > 700 && !expanded[m.id] ? m.text.slice(0, 700) + "…" : m.text}
+                  onCite={(id) => router.push(`/graph?node=${encodeURIComponent(id)}`)}
+                />
+                {m.text.length > 700 && (
+                  <button
+                    type="button"
+                    onClick={() => setExpanded((e) => ({ ...e, [m.id]: !e[m.id] }))}
+                    className="mt-1 text-xs text-blue hover:underline"
+                  >
+                    {expanded[m.id] ? "Show less" : "Show more"}
+                  </button>
+                )}
                 {m.citations && m.citations.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap items-start gap-1">
                     {m.citations.map((c) => (

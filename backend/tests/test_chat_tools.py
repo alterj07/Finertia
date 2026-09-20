@@ -60,6 +60,42 @@ def test_record_feedback(tools, ctx: AgentContext) -> None:
 
 def test_run_orchestrator(tools) -> None:
     out = tools["run_orchestrator"].fn("reconcile Q1")
-    assert out["results"][0]["summary"]["difference"] == 0
-    assert "matches" not in out["results"][0]["summary"]
+    recon = next(r for r in out["results"] if r["agent"] == "Cash & Reconciliation")
+    assert recon["findings_count"] > 0
+    assert recon["headline"]
     assert out["citations"]
+
+
+def test_run_orchestrator_compact_digest(tools, ctx) -> None:
+    import json
+
+    reg = default_registry()
+    reg.get("Cash & Reconciliation").run(ctx)
+    reg.get("AP/AR").run(ctx)
+    out = tools["run_orchestrator"].fn("close the books")
+    assert "summary" not in json.dumps(out)
+    assert out["ran"]
+    for r in out["results"]:
+        assert len(r["top"]) <= 3
+        assert "headline" in r
+        assert "findings_count" in r
+    assert out["blockers"]
+    assert len(json.dumps(out, default=str)) < 6000
+
+
+def test_get_findings_detail_truncated(tools, ctx) -> None:
+    default_registry().get("Cash & Reconciliation").run(ctx)
+    out = tools["get_findings"].fn()
+    assert len(out["findings"]) <= 25
+    assert all(len(f["detail"]) <= 160 for f in out["findings"])
+
+
+def test_get_findings_exposes_data(tools, ctx) -> None:
+    import json
+
+    reg = default_registry()
+    reg.get("Cash & Reconciliation").run(ctx)
+    reg.get("AP/AR").run(ctx)
+    pr = tools["get_findings"].fn(code="PAYMENT_RUN")["findings"][0]
+    assert "INV-7781" in json.dumps(pr["data"]["on_hold"])
+    assert len(json.dumps(tools["get_findings"].fn(), default=str)) < 20000
