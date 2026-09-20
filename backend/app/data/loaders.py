@@ -7,6 +7,9 @@ Ported from the finance-agent-lab ingest.py, minus Elasticsearch and OCR:
     bank_transactions.csv    (flat)     -> BankTxn
     vendor_invoices.jsonl    (3 schemas)-> Invoice   (normalized to one schema, raw kept)
     emails/*.eml             (text)     -> Email     (entities extracted: amounts, doc refs, domain)
+
+The `load_*` functions read the canonical files under a data dir; the `parse_*`
+functions do the row-level work so uploads can feed the same pipeline.
 """
 
 import csv
@@ -14,7 +17,8 @@ import email
 import email.policy
 import json
 import re
-from datetime import datetime, timedelta
+from collections.abc import Iterable
+from datetime import date, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
@@ -26,68 +30,84 @@ DOC_REF = re.compile(r"\b(?:[A-Z]{2,4}-?(?:\d{4}-)?\d{2,5})\b")
 MONEY = re.compile(r"(?:\$|USD\s?|EUR\s?)\s?([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})?)")
 CHECK_NO = re.compile(r"Check #(\d+)")
 
+BANK_REQUIRED = {"txn_id", "posted_date", "amount", "running_balance", "txn_type", "description"}
+GL_REQUIRED = {"je_id", "line_no", "posting_date", "account", "debit", "credit"}
+INVOICE_SOURCES = {"vendor_portal", "email_ingest", "edi_810"}
+
 
 def norm_ref(s: object) -> str | None:
     return re.sub(r"[^A-Z0-9]", "", str(s).upper()) if s else None
 
 
-def load_gl(data_dir: Path) -> list[GLLine]:
-    rows = pq.read_table(data_dir / "general_ledger.parquet").to_pylist()
+def _to_date(v) -> date:
+    return v if isinstance(v, date) else date.fromisoformat(str(v)[:10])
+
+
+def parse_gl_rows(rows: Iterable[dict]) -> list[GLLine]:
     out = []
     for r in rows:
-        debit = float(r["debit"] or 0)
-        credit = float(r["credit"] or 0)
-        memo = r["memo"] or ""
+        debit = float(r.get("debit") or 0)
+        credit = float(r.get("credit") or 0)
+        memo = r.get("memo") or ""
         m = CHECK_NO.search(memo)
         out.append(
             GLLine(
                 je_id=r["je_id"],
                 line_no=int(r["line_no"]),
-                posting_date=r["posting_date"],
+                posting_date=_to_date(r["posting_date"]),
                 account=r["account"],
-                account_name=r["account_name"] or "",
+                account_name=r.get("account_name") or "",
                 debit=debit,
                 credit=credit,
                 amount=round(debit - credit, 2),
-                vendor_id=r["vendor_id"] or None,
-                customer_id=r["customer_id"] or None,
-                doc_ref=r["doc_ref"] or None,
-                doc_ref_norm=norm_ref(r["doc_ref"]),
+                vendor_id=r.get("vendor_id") or None,
+                customer_id=r.get("customer_id") or None,
+                doc_ref=r.get("doc_ref") or None,
+                doc_ref_norm=norm_ref(r.get("doc_ref")),
                 memo=memo,
-                source=r["source"] or "",
-                posted_by=r["posted_by"] or "",
-                approved_by=r["approved_by"] or None,
-                entered_at=r["entered_at"] or "",
+                source=r.get("source") or "",
+                posted_by=r.get("posted_by") or "",
+                approved_by=r.get("approved_by") or None,
+                entered_at=r.get("entered_at") or "",
                 check_number=m.group(1) if m else None,
             )
         )
     return out
 
 
-def load_bank(data_dir: Path) -> list[BankTxn]:
+def load_gl(data_dir: Path) -> list[GLLine]:
+    return parse_gl_rows(pq.read_table(data_dir / "general_ledger.parquet").to_pylist())
+
+
+def parse_bank_rows(rows: Iterable[dict]) -> list[BankTxn]:
     out = []
-    with open(data_dir / "bank_transactions.csv", newline="") as f:
-        for r in csv.DictReader(f):
-            out.append(
-                BankTxn(
-                    txn_id=r["txn_id"],
-                    posted_date=r["posted_date"],
-                    amount=float(r["amount"]),
-                    running_balance=float(r["running_balance"]),
-                    txn_type=r["txn_type"],
-                    description=r["description"],
-                    check_number=r["check_number"] or None,
-                    account=r.get("account", ""),
-                    refs_norm=[norm_ref(x) for x in DOC_REF.findall(r["description"])],
-                )
+    for r in rows:
+        out.append(
+            BankTxn(
+                txn_id=r["txn_id"],
+                posted_date=r["posted_date"],
+                amount=float(r["amount"]),
+                running_balance=float(r["running_balance"]),
+                txn_type=r["txn_type"],
+                description=r["description"],
+                check_number=r.get("check_number") or None,
+                account=r.get("account", ""),
+                refs_norm=[norm_ref(x) for x in DOC_REF.findall(r["description"])],
             )
+        )
     return out
 
 
-def load_invoices(data_dir: Path) -> list[Invoice]:
+def load_bank(data_dir: Path) -> list[BankTxn]:
+    with open(data_dir / "bank_transactions.csv", newline="") as f:
+        return parse_bank_rows(csv.DictReader(f))
+
+
+def parse_invoices(
+    raws: list[dict], name_to_id: dict[str, str] | None = None
+) -> list[Invoice]:
     """Three vendor schemas -> one. The 'semi-structured' problem in miniature."""
-    raws = [json.loads(line) for line in open(data_dir / "vendor_invoices.jsonl")]
-    name_to_id = {}
+    name_to_id = dict(name_to_id or {})
     for r in raws:
         if r["source"] == "vendor_portal":
             name_to_id[r["vendor"]["name"]] = r["vendor"]["id"]
@@ -151,24 +171,31 @@ def load_invoices(data_dir: Path) -> list[Invoice]:
     return out
 
 
+def load_invoices(data_dir: Path) -> list[Invoice]:
+    raws = [json.loads(line) for line in open(data_dir / "vendor_invoices.jsonl")]
+    return parse_invoices(raws)
+
+
+def parse_eml(name: str, data: bytes) -> Email:
+    msg = email.message_from_bytes(data, policy=email.policy.default)
+    body = msg.get_body(preferencelist=("plain",)).get_content()
+    frm = str(msg["From"])
+    text = f"{msg['Subject']}\n{body}"
+    return Email(
+        file=name,
+        sent_at=parsedate_to_datetime(msg["Date"]).isoformat(),
+        sender=frm,
+        from_domain=re.search(r"@([\w.\-]+)", frm).group(1).lower(),
+        to=str(msg["To"]),
+        subject=str(msg["Subject"]),
+        body=body,
+        amounts=[float(a.replace(",", "")) for a in MONEY.findall(text)],
+        doc_refs_norm=sorted({norm_ref(r) for r in DOC_REF.findall(text)}),
+    )
+
+
 def load_emails(data_dir: Path) -> list[Email]:
-    out = []
-    for p in sorted((data_dir / "emails").glob("*.eml")):
-        msg = email.message_from_bytes(p.read_bytes(), policy=email.policy.default)
-        body = msg.get_body(preferencelist=("plain",)).get_content()
-        frm = str(msg["From"])
-        text = f"{msg['Subject']}\n{body}"
-        out.append(
-            Email(
-                file=p.name,
-                sent_at=parsedate_to_datetime(msg["Date"]).isoformat(),
-                sender=frm,
-                from_domain=re.search(r"@([\w.\-]+)", frm).group(1).lower(),
-                to=str(msg["To"]),
-                subject=str(msg["Subject"]),
-                body=body,
-                amounts=[float(a.replace(",", "")) for a in MONEY.findall(text)],
-                doc_refs_norm=sorted({norm_ref(r) for r in DOC_REF.findall(text)}),
-            )
-        )
-    return out
+    return [
+        parse_eml(p.name, p.read_bytes())
+        for p in sorted((data_dir / "emails").glob("*.eml"))
+    ]

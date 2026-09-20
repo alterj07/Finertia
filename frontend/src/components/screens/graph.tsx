@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SectionBlock } from "@/components/shared/section-block";
 import { AgentRunner } from "@/components/graph/agent-runner";
+import { DataUpload } from "@/components/graph/data-upload";
 import { GraphCanvas } from "@/components/graph/graph-canvas";
 
 export function GraphScreen() {
@@ -16,6 +17,7 @@ export function GraphScreen() {
           Click a node to expand it into the invoices, journal entries, bank lines, emails and
           scans underneath.
         </p>
+        <DataUpload onUploaded={() => setReloadToken((t) => t + 1)} />
         <AgentRunner onRan={() => setReloadToken((t) => t + 1)} />
         <GraphCanvas reloadToken={reloadToken} />
       </SectionBlock>

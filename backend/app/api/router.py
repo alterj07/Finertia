@@ -11,6 +11,7 @@ from app.api import (
     orchestrator,
     recon,
     storage,
+    uploads,
 )
 
 api_router = APIRouter(prefix="/api")
@@ -24,3 +25,4 @@ api_router.include_router(chat.router)
 api_router.include_router(storage.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(flight_simulator.router)
+api_router.include_router(uploads.router)

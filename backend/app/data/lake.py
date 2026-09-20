@@ -6,9 +6,13 @@ DuckDB backend implements the same methods and agents don't change.
 
 from datetime import date
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.data.loaders import load_bank, load_emails, load_gl, load_invoices
 from app.data.models import BankTxn, Email, GLLine, Invoice
+
+if TYPE_CHECKING:
+    from app.data.upload import UploadBatch
 
 
 def _d(s: date | str) -> date:
@@ -39,6 +43,32 @@ class DataLake:
         )
         lake.data_dir = path
         return lake
+
+    def add(self, batch: "UploadBatch") -> dict[str, int]:
+        """Merge new rows in (dedupe by natural key, later wins);
+        returns rows added/updated per collection."""
+        keys = {
+            "bank": lambda b: b.txn_id,
+            "gl": lambda g: (g.je_id, g.line_no),
+            "invoices": lambda i: (i.source, i.invoice_number_norm),
+            "emails": lambda e: e.file,
+        }
+        counts: dict[str, int] = {}
+        for name, key in keys.items():
+            items: list = getattr(self, name)
+            index = {key(it): pos for pos, it in enumerate(items)}
+            added = 0
+            for it in getattr(batch, name):
+                pos = index.get(key(it))
+                if pos is None:
+                    index[key(it)] = len(items)
+                    items.append(it)
+                else:
+                    items[pos] = it
+                added += 1
+            if added:
+                counts[name] = added
+        return counts
 
     def bank_between(self, start: date | str, end: date | str) -> list[BankTxn]:
         start, end = _d(start), _d(end)

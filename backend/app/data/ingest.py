@@ -13,30 +13,40 @@ from app.data.lake import DataLake
 
 _FIN = ["fin-bank", "fin-gl", "fin-invoices", "fin-emails"]
 
+_ID_FIELDS = {
+    "fin-bank": "txn_id",
+    "fin-gl": "_doc_id",
+    "fin-invoices": "_doc_id",
+    "fin-emails": "file",
+}
 
-def _docs(models: list[Any]) -> list[dict]:
-    # `ord` preserves the local loader order — seed() is order-dependent
-    return [{**m.model_dump(mode="json"), "ord": i} for i, m in enumerate(models)]
+
+def docs_for(
+    collection: str, models: list[Any], ord_start: int = 0
+) -> tuple[list[dict], str]:
+    """Shape pydantic models into bulk docs: `ord` (loader/upload order),
+    `_doc_id` for collections whose natural key is composite."""
+    index = f"fin-{collection}"
+    docs = [
+        {**m.model_dump(mode="json"), "ord": ord_start + i}
+        for i, m in enumerate(models)
+    ]
+    if collection == "gl":
+        docs = [{**d, "_doc_id": f"{d['je_id']}:{d['line_no']}"} for d in docs]
+    elif collection == "invoices":
+        docs = [
+            {**d, "_doc_id": f"{d['source']}:{d['invoice_number_norm']}"}
+            for d in docs
+        ]
+    return docs, _ID_FIELDS[index]
 
 
 def ingest_lake(lake: DataLake, store: ElasticStore) -> dict[str, int]:
     for index in _FIN:
         store.create_index(index, MAPPINGS[index], recreate=True)
-    store.bulk("fin-bank", _docs(lake.bank), id_field="txn_id")
-    store.bulk(
-        "fin-gl",
-        [{**d, "_doc_id": f"{d['je_id']}:{d['line_no']}"} for d in _docs(lake.gl)],
-        id_field="_doc_id",
-    )
-    store.bulk(
-        "fin-invoices",
-        [
-            {**d, "_doc_id": f"{d['source']}:{d['invoice_number_norm']}"}
-            for d in _docs(lake.invoices)
-        ],
-        id_field="_doc_id",
-    )
-    store.bulk("fin-emails", _docs(lake.emails), id_field="file")
+    for collection in ("bank", "gl", "invoices", "emails"):
+        docs, id_field = docs_for(collection, getattr(lake, collection))
+        store.bulk(f"fin-{collection}", docs, id_field=id_field)
     return {index: store.count(index) for index in _FIN}
 
 

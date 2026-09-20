@@ -7,11 +7,15 @@ every doc once and caching.
 
 from datetime import date
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app.data.es_store import ElasticStore
+from app.data.es_store import MAPPINGS, ElasticStore
+from app.data.ingest import docs_for
 from app.data.lake import DataLake, _d
 from app.data.models import BankTxn, Email, GLLine, Invoice
+
+if TYPE_CHECKING:
+    from app.data.upload import UploadBatch
 
 
 def _strip(doc: dict) -> dict:
@@ -48,6 +52,27 @@ class ElasticDataLake(DataLake):
     def emails(self) -> list[Email]:
         docs = self.store.search("fin-emails", sort=[{"ord": "asc"}])
         return [Email(**_strip(d)) for d in docs]
+
+    # ------------------------------------------------------------- uploads
+    def add(self, batch: "UploadBatch") -> dict[str, int]:
+        """Upsert uploaded rows into the fin-* indices (same doc ids as ingest,
+        so re-uploading replaces rather than duplicates) and drop the cached
+        collection views."""
+        counts: dict[str, int] = {}
+        for collection in ("bank", "gl", "invoices", "emails"):
+            models = getattr(batch, collection)
+            if not models:
+                continue
+            index = f"fin-{collection}"
+            self.store.create_index(index, MAPPINGS[index])
+            docs, id_field = docs_for(
+                collection, models, ord_start=self.store.count(index)
+            )
+            self.store.bulk(index, docs, id_field=id_field)
+            counts[collection] = len(docs)
+        for k in ("bank", "gl", "invoices", "emails"):
+            self.__dict__.pop(k, None)
+        return counts
 
     # ------------------------------------------------------- query methods
     def bank_between(self, start: date | str, end: date | str) -> list[BankTxn]:

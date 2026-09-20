@@ -4,13 +4,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   const res = await fetch(`${API_URL}${path}`, init);
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
+    let body: unknown;
     try {
-      const body = await res.json();
-      if (body?.detail) detail = body.detail;
+      body = await res.json();
+      if ((body as { detail?: string })?.detail)
+        detail = (body as { detail: string }).detail;
     } catch {
       /* keep default */
     }
-    throw new ApiError(res.status, detail);
+    throw new ApiError(res.status, detail, body);
   }
   return res.json() as Promise<T>;
 }
@@ -19,6 +21,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public body?: unknown,
   ) {
     super(message);
   }
@@ -282,4 +285,54 @@ export interface DealsResponse {
 
 export function fetchDeals(): Promise<DealsResponse> {
   return apiFetch<DealsResponse>("/api/deals");
+}
+
+// ---- data uploads ----
+
+export type UploadKind = "bank" | "gl" | "invoices" | "emails" | "ignored";
+
+export interface UploadFileReport {
+  name: string;
+  kind: UploadKind | null; // null = incompatible
+  rows: number;
+  ok: boolean;
+  error: string | null;
+}
+
+export interface UploadReport {
+  files: UploadFileReport[];
+  ok: boolean;
+  counts: Record<string, number>;
+}
+
+export interface UploadResult {
+  report: UploadReport;
+  added: Record<string, number>;
+  backend: string;
+  memory: MemoryStats;
+}
+
+export interface UploadFileInput {
+  file: File;
+  path: string; // relative path, keeps folder structure for the backend
+}
+
+function uploadFormData(files: UploadFileInput[]): FormData {
+  const fd = new FormData();
+  for (const { file, path } of files) fd.append("files", file, path);
+  return fd;
+}
+
+export function validateUpload(files: UploadFileInput[]): Promise<UploadReport> {
+  return apiFetch<UploadReport>("/api/uploads/validate", {
+    method: "POST",
+    body: uploadFormData(files),
+  });
+}
+
+export function uploadData(files: UploadFileInput[]): Promise<UploadResult> {
+  return apiFetch<UploadResult>("/api/uploads", {
+    method: "POST",
+    body: uploadFormData(files),
+  });
 }
