@@ -9,6 +9,7 @@ interface AppState {
   isDark: boolean;
   setDark: (dark: boolean) => void;
   toggleDark: () => void;
+  syncDarkFromDocument: () => void;
 
   entity: string;
   setEntity: (entity: string) => void;
@@ -35,6 +36,10 @@ export const useAppStore = create<AppState>((set) => ({
       }
     }
     set({ isDark: dark });
+  },
+  syncDarkFromDocument: () => {
+    if (typeof document === "undefined") return;
+    set({ isDark: document.documentElement.classList.contains("dark") });
   },
   toggleDark: () => set((s) => {
     const next = !s.isDark;

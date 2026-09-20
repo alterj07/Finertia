@@ -92,6 +92,13 @@ export function Topbar() {
   const toggleDark = useAppStore((s) => s.toggleDark);
   const setLeftRailOpen = useAppStore((s) => s.setLeftRailOpen);
   const setCopilotOpen = useAppStore((s) => s.setCopilotOpen);
+  const syncDarkFromDocument = useAppStore((s) => s.syncDarkFromDocument);
+
+  // The layout's inline script may have applied dark mode (stored or system
+  // preference) before React ran; align the store so the toggle flips once.
+  useEffect(() => {
+    syncDarkFromDocument();
+  }, [syncDarkFromDocument]);
 
   return (
     <header
