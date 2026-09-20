@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu, MessageSquare, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MODULE_TITLES } from "@/lib/config/nav";
 import { pathToModule } from "@/lib/route";
 import { ENTITIES, PERIODS, useAppStore } from "@/store/app-store";
+import { useAuthStore } from "@/store/auth-store";
 
 const AS_OF = "As of 2026-03-31";
 
@@ -81,6 +82,48 @@ function PickerDropdown({
   );
 }
 
+function UserChip() {
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const [open, setOpen] = useState(false);
+  const ref = useOutsideClick(() => setOpen(false));
+
+  if (!user) return null;
+  const initial = (user.name || user.email || "?").trim().charAt(0).toUpperCase();
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label="Account"
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-ink font-mono text-2xs text-paper"
+      >
+        {initial}
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1 w-max min-w-[180px] border border-rule bg-paper-raised py-1 shadow-[0_2px_10px_rgba(var(--shadow-color),0.12)]">
+          <div className="px-3 py-1.5">
+            <div className="text-sm text-ink">{user.name || user.username}</div>
+            <div className="text-2xs text-ink-soft">{user.email}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              router.replace("/login");
+            }}
+            className="block w-full px-3 py-1.5 text-left text-sm text-ink-soft hover:bg-paper hover:text-ink"
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Topbar() {
   const pathname = usePathname();
   const moduleKey = pathToModule(pathname);
@@ -135,6 +178,7 @@ export function Topbar() {
         >
           {isDark ? <Sun size={16} /> : <Moon size={16} />}
         </button>
+        <UserChip />
         <button
           type="button"
           onClick={() => setCopilotOpen(true)}

@@ -182,6 +182,24 @@ and `graph.search()` queries `memory-nodes` with a local-BM25 fallback. In
 local mode everything behaves as before — `var/memory_graph.json` is the
 store.
 
+## Authentication
+
+Every API route except `/api/health` and `/api/auth/*` requires a Bearer token.
+Accounts are email + password and live in the `users` Elasticsearch index
+(scrypt-hashed; `var/users.json` in local mode). All accounts share the same
+workspace — the data, memory graph and findings are common; chat history is
+per user.
+
+- Demo account seeded at startup: **user `admin` / password `password`**
+  (override with `DEMO_ADMIN_USERNAME` / `DEMO_ADMIN_PASSWORD`).
+- `POST /api/auth/signup {email, password, name}`, `POST /api/auth/login
+  {identifier, password}` → `{token, user}`, `GET /api/auth/me`.
+- Set `AUTH_SECRET` (32+ random bytes) in production; tokens last
+  `AUTH_TOKEN_TTL_HOURS` (default 168).
+- `AUTH_REQUIRED=false` disables the gate entirely.
+
+The frontend redirects unauthenticated visitors to `/login`; sign up at `/signup`.
+
 ## Deploy
 
 The backend ships as a Docker image built from the repo root (it bundles `data/`):

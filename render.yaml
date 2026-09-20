@@ -13,3 +13,5 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
+      - key: AUTH_SECRET
+        generateValue: true

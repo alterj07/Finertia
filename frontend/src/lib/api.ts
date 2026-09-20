@@ -1,7 +1,12 @@
+import { clearToken, getToken } from "@/lib/auth-token";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, init);
+  const token = getToken();
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
     let body: unknown;
@@ -11,6 +16,17 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
         detail = (body as { detail: string }).detail;
     } catch {
       /* keep default */
+    }
+    if (
+      res.status === 401 &&
+      !path.startsWith("/api/auth/") &&
+      typeof window !== "undefined"
+    ) {
+      clearToken();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign(
+        `/login?next=${encodeURIComponent(location.pathname + location.search)}`,
+      );
     }
     throw new ApiError(res.status, detail, body);
   }
@@ -335,4 +351,46 @@ export function uploadData(files: UploadFileInput[]): Promise<UploadResult> {
     method: "POST",
     body: uploadFormData(files),
   });
+}
+
+// ---- auth ----
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  username: string;
+  name: string;
+  role: "admin" | "member";
+}
+
+export interface AuthTokenResponse {
+  token: string;
+  user: AuthUser;
+}
+
+export function authLogin(
+  identifier: string,
+  password: string,
+): Promise<AuthTokenResponse> {
+  return apiFetch<AuthTokenResponse>("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier, password }),
+  });
+}
+
+export function authSignup(
+  email: string,
+  password: string,
+  name: string,
+): Promise<AuthTokenResponse> {
+  return apiFetch<AuthTokenResponse>("/api/auth/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name }),
+  });
+}
+
+export function authMe(): Promise<AuthUser> {
+  return apiFetch<AuthUser>("/api/auth/me");
 }

@@ -24,8 +24,8 @@ class ChatSessionStore:
             json.dumps([s.model_dump(mode="json") for s in self.sessions], indent=2)
         )
 
-    def create(self, title: str = "") -> ChatSession:
-        session = ChatSession(id=uuid.uuid4().hex[:12], title=title)
+    def create(self, title: str = "", user_id: str = "") -> ChatSession:
+        session = ChatSession(id=uuid.uuid4().hex[:12], title=title, user_id=user_id)
         self.sessions.append(session)
         self._save()
         return session
@@ -40,6 +40,7 @@ class ChatSessionStore:
                 "title": s.title,
                 "updated_at": s.updated_at.isoformat(),
                 "message_count": len(s.messages),
+                "user_id": s.user_id,
             }
             for s in sorted(self.sessions, key=lambda s: s.updated_at, reverse=True)
         ]

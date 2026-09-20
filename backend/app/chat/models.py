@@ -48,6 +48,7 @@ class ToolEvent(BaseModel):
 class ChatSession(BaseModel):
     id: str
     title: str = ""
+    user_id: str = ""
     messages: list[ChatMessage] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now().replace(microsecond=0))
     updated_at: datetime = Field(default_factory=lambda: datetime.now().replace(microsecond=0))

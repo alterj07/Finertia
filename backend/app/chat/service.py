@@ -67,11 +67,15 @@ class ChatService:
         self.max_steps = max_steps
 
     def respond(
-        self, session_id: str | None, user_message: str, context: str | None = None
+        self,
+        session_id: str | None,
+        user_message: str,
+        context: str | None = None,
+        user_id: str = "",
     ) -> ChatResponse:
         session = (
             self.sessions.get(session_id) if session_id else None
-        ) or self.sessions.create()
+        ) or self.sessions.create(user_id=user_id)
         new_messages: list[ChatMessage] = [ChatMessage(role="user", content=user_message)]
         history = session.messages + new_messages
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
