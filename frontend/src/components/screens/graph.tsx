@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { SectionBlock } from "@/components/shared/section-block";
+import { AgentRunner } from "@/components/graph/agent-runner";
 import { GraphCanvas } from "@/components/graph/graph-canvas";
 
 export function GraphScreen() {
+  const [reloadToken, setReloadToken] = useState(0);
   return (
     <div>
       <SectionBlock title="Data graph">
@@ -13,7 +16,8 @@ export function GraphScreen() {
           Click a node to expand it into the invoices, journal entries, bank lines, emails and
           scans underneath.
         </p>
-        <GraphCanvas />
+        <AgentRunner onRan={() => setReloadToken((t) => t + 1)} />
+        <GraphCanvas reloadToken={reloadToken} />
       </SectionBlock>
     </div>
   );

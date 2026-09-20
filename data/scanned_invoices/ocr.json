@@ -1,0 +1,836 @@
+{
+ "scan_bauer_BP-4471.png": {
+  "lines": [
+   {
+    "text": "Bauer Prazision GmbH",
+    "conf": 0.9836,
+    "y": 87,
+    "x": 78
+   },
+   {
+    "text": "INVOICE",
+    "conf": 0.998,
+    "y": 83,
+    "x": 816
+   },
+   {
+    "text": "billing@bauer-praezision.de",
+    "conf": 0.9837,
+    "y": 141,
+    "x": 74
+   },
+   {
+    "text": "Invoice No:",
+    "conf": 0.9946,
+    "y": 241,
+    "x": 76
+   },
+   {
+    "text": "BP-4471",
+    "conf": 0.9997,
+    "y": 241,
+    "x": 335
+   },
+   {
+    "text": "Invoice Date:",
+    "conf": 0.984,
+    "y": 284,
+    "x": 75
+   },
+   {
+    "text": "2026-02-18",
+    "conf": 0.9999,
+    "y": 285,
+    "x": 335
+   },
+   {
+    "text": "Due Date:",
+    "conf": 0.9982,
+    "y": 329,
+    "x": 77
+   },
+   {
+    "text": "2026-03-20",
+    "conf": 0.9999,
+    "y": 329,
+    "x": 336
+   },
+   {
+    "text": "Bill To:",
+    "conf": 0.9712,
+    "y": 373,
+    "x": 76
+   },
+   {
+    "text": "NorthwindRoboticsInc.",
+    "conf": 0.9934,
+    "y": 375,
+    "x": 337
+   },
+   {
+    "text": "Currency:",
+    "conf": 0.9955,
+    "y": 418,
+    "x": 78
+   },
+   {
+    "text": "EUR",
+    "conf": 0.999,
+    "y": 418,
+    "x": 336
+   },
+   {
+    "text": "Description",
+    "conf": 0.9913,
+    "y": 513,
+    "x": 77
+   },
+   {
+    "text": "Amount",
+    "conf": 0.9986,
+    "y": 511,
+    "x": 908
+   },
+   {
+    "text": "Präzisionsteile / machined parts",
+    "conf": 0.9839,
+    "y": 566,
+    "x": 78
+   },
+   {
+    "text": "8,000.00",
+    "conf": 0.9985,
+    "y": 563,
+    "x": 907
+   },
+   {
+    "text": "TOTALDUE(EUR)8,000.00",
+    "conf": 0.9217,
+    "y": 636,
+    "x": 618
+   },
+   {
+    "text": "Remit payment to:",
+    "conf": 0.9936,
+    "y": 750,
+    "x": 79
+   },
+   {
+    "text": "Deutsche Bank Account DE89****3000",
+    "conf": 0.9787,
+    "y": 794,
+    "x": 78
+   },
+   {
+    "text": "Thank you foryour business.",
+    "conf": 0.9442,
+    "y": 1484,
+    "x": 83
+   }
+  ],
+  "text": "Bauer Prazision GmbH\nINVOICE\nbilling@bauer-praezision.de\nInvoice No:\nBP-4471\nInvoice Date:\n2026-02-18\nDue Date:\n2026-03-20\nBill To:\nNorthwindRoboticsInc.\nCurrency:\nEUR\nDescription\nAmount\nPräzisionsteile / machined parts\n8,000.00\nTOTALDUE(EUR)8,000.00\nRemit payment to:\nDeutsche Bank Account DE89****3000\nThank you foryour business."
+ },
+ "scan_brightline_INV7781.png": {
+  "lines": [
+   {
+    "text": "Brightline Logistics",
+    "conf": 0.9912,
+    "y": 78,
+    "x": 90
+   },
+   {
+    "text": "INVOICE",
+    "conf": 0.9985,
+    "y": 84,
+    "x": 827
+   },
+   {
+    "text": "billing@brightlinelogistics.com",
+    "conf": 0.9922,
+    "y": 133,
+    "x": 87
+   },
+   {
+    "text": "Invoice No:",
+    "conf": 0.9971,
+    "y": 233,
+    "x": 84
+   },
+   {
+    "text": "INV7781",
+    "conf": 0.9982,
+    "y": 236,
+    "x": 341
+   },
+   {
+    "text": "Invoice Date:",
+    "conf": 0.9715,
+    "y": 278,
+    "x": 84
+   },
+   {
+    "text": "2026-02-10",
+    "conf": 0.9999,
+    "y": 280,
+    "x": 343
+   },
+   {
+    "text": "Due Date:",
+    "conf": 0.9794,
+    "y": 320,
+    "x": 84
+   },
+   {
+    "text": "2026-03-12",
+    "conf": 0.9999,
+    "y": 325,
+    "x": 344
+   },
+   {
+    "text": "Bill To:",
+    "conf": 0.957,
+    "y": 365,
+    "x": 84
+   },
+   {
+    "text": "Northwind Robotics Inc.",
+    "conf": 0.9831,
+    "y": 368,
+    "x": 344
+   },
+   {
+    "text": "Currency:",
+    "conf": 0.9961,
+    "y": 411,
+    "x": 84
+   },
+   {
+    "text": "USD",
+    "conf": 0.9991,
+    "y": 412,
+    "x": 341
+   },
+   {
+    "text": "Description",
+    "conf": 0.9995,
+    "y": 506,
+    "x": 83
+   },
+   {
+    "text": "Amount",
+    "conf": 0.9996,
+    "y": 513,
+    "x": 911
+   },
+   {
+    "text": "Freight-Februarylanes",
+    "conf": 0.9963,
+    "y": 559,
+    "x": 83
+   },
+   {
+    "text": "12,400.00",
+    "conf": 0.9994,
+    "y": 566,
+    "x": 911
+   },
+   {
+    "text": "TOTAL DUE (USD) 12,400.00",
+    "conf": 0.9664,
+    "y": 635,
+    "x": 619
+   },
+   {
+    "text": "Remit payment to:",
+    "conf": 0.9875,
+    "y": 740,
+    "x": 81
+   },
+   {
+    "text": "PNC Account ****3391",
+    "conf": 0.9887,
+    "y": 783,
+    "x": 78
+   },
+   {
+    "text": "Thank you for your business.",
+    "conf": 0.9566,
+    "y": 1475,
+    "x": 73
+   }
+  ],
+  "text": "Brightline Logistics\nINVOICE\nbilling@brightlinelogistics.com\nInvoice No:\nINV7781\nInvoice Date:\n2026-02-10\nDue Date:\n2026-03-12\nBill To:\nNorthwind Robotics Inc.\nCurrency:\nUSD\nDescription\nAmount\nFreight-Februarylanes\n12,400.00\nTOTAL DUE (USD) 12,400.00\nRemit payment to:\nPNC Account ****3391\nThank you for your business."
+ },
+ "scan_cloudnimbus_CN-2026-03.png": {
+  "lines": [
+   {
+    "text": "CloudNimbus Inc",
+    "conf": 0.9902,
+    "y": 78,
+    "x": 90
+   },
+   {
+    "text": "INVOICE",
+    "conf": 0.9983,
+    "y": 84,
+    "x": 826
+   },
+   {
+    "text": "billing@cloudnimbus.com",
+    "conf": 0.9965,
+    "y": 133,
+    "x": 86
+   },
+   {
+    "text": "Invoice No:",
+    "conf": 0.9789,
+    "y": 232,
+    "x": 84
+   },
+   {
+    "text": "CN-2026-03",
+    "conf": 0.9997,
+    "y": 237,
+    "x": 344
+   },
+   {
+    "text": "Invoice Date:",
+    "conf": 0.9725,
+    "y": 276,
+    "x": 83
+   },
+   {
+    "text": "2026-03-08",
+    "conf": 0.9997,
+    "y": 281,
+    "x": 343
+   },
+   {
+    "text": "Due Date:",
+    "conf": 0.9982,
+    "y": 320,
+    "x": 83
+   },
+   {
+    "text": "2026-03-23",
+    "conf": 0.9999,
+    "y": 324,
+    "x": 343
+   },
+   {
+    "text": "Bill To:",
+    "conf": 0.9656,
+    "y": 365,
+    "x": 84
+   },
+   {
+    "text": "Northwind Robotics Inc.",
+    "conf": 0.9867,
+    "y": 368,
+    "x": 344
+   },
+   {
+    "text": "Currency:",
+    "conf": 0.9963,
+    "y": 411,
+    "x": 84
+   },
+   {
+    "text": "USD",
+    "conf": 0.999,
+    "y": 412,
+    "x": 341
+   },
+   {
+    "text": "Description",
+    "conf": 0.9997,
+    "y": 505,
+    "x": 82
+   },
+   {
+    "text": "Amount",
+    "conf": 0.9994,
+    "y": 513,
+    "x": 911
+   },
+   {
+    "text": "Compute usage",
+    "conf": 0.9998,
+    "y": 557,
+    "x": 83
+   },
+   {
+    "text": "5,626.67",
+    "conf": 0.9994,
+    "y": 568,
+    "x": 911
+   },
+   {
+    "text": "Storage",
+    "conf": 0.9985,
+    "y": 598,
+    "x": 80
+   },
+   {
+    "text": "5,626.67",
+    "conf": 0.9992,
+    "y": 610,
+    "x": 910
+   },
+   {
+    "text": "Data egress",
+    "conf": 0.9842,
+    "y": 643,
+    "x": 79
+   },
+   {
+    "text": "5,626.66",
+    "conf": 0.9996,
+    "y": 653,
+    "x": 911
+   },
+   {
+    "text": "TOTALDUE(USD) 16,880.00",
+    "conf": 0.957,
+    "y": 721,
+    "x": 619
+   },
+   {
+    "text": "Remit payment to:",
+    "conf": 0.9688,
+    "y": 825,
+    "x": 79
+   },
+   {
+    "text": "First Coastal Bank Account ****9921",
+    "conf": 0.9749,
+    "y": 869,
+    "x": 79
+   },
+   {
+    "text": "Thank you for your business.",
+    "conf": 0.941,
+    "y": 1475,
+    "x": 73
+   }
+  ],
+  "text": "CloudNimbus Inc\nINVOICE\nbilling@cloudnimbus.com\nInvoice No:\nCN-2026-03\nInvoice Date:\n2026-03-08\nDue Date:\n2026-03-23\nBill To:\nNorthwind Robotics Inc.\nCurrency:\nUSD\nDescription\nAmount\nCompute usage\n5,626.67\nStorage\n5,626.67\nData egress\n5,626.66\nTOTALDUE(USD) 16,880.00\nRemit payment to:\nFirst Coastal Bank Account ****9921\nThank you for your business."
+ },
+ "scan_keystone_KL-2026-031.png": {
+  "lines": [
+   {
+    "text": "Keystone Legal LLP",
+    "conf": 0.9968,
+    "y": 76,
+    "x": 92
+   },
+   {
+    "text": "INVOICE",
+    "conf": 0.998,
+    "y": 86,
+    "x": 830
+   },
+   {
+    "text": "billing@keystonelegal.com",
+    "conf": 0.9997,
+    "y": 129,
+    "x": 88
+   },
+   {
+    "text": "Invoice No:",
+    "conf": 0.9976,
+    "y": 231,
+    "x": 86
+   },
+   {
+    "text": "KL-2026-031",
+    "conf": 0.9996,
+    "y": 235,
+    "x": 346
+   },
+   {
+    "text": "Invoice Date:",
+    "conf": 0.9849,
+    "y": 274,
+    "x": 86
+   },
+   {
+    "text": "2026-03-09",
+    "conf": 0.9999,
+    "y": 279,
+    "x": 346
+   },
+   {
+    "text": "Due Date:",
+    "conf": 0.9991,
+    "y": 318,
+    "x": 86
+   },
+   {
+    "text": "2026-04-08",
+    "conf": 0.9999,
+    "y": 323,
+    "x": 345
+   },
+   {
+    "text": "Bill To:",
+    "conf": 0.9968,
+    "y": 362,
+    "x": 87
+   },
+   {
+    "text": "Northwind Robotics Inc.",
+    "conf": 0.965,
+    "y": 367,
+    "x": 346
+   },
+   {
+    "text": "Currency:",
+    "conf": 0.9955,
+    "y": 409,
+    "x": 85
+   },
+   {
+    "text": "USD",
+    "conf": 0.9992,
+    "y": 411,
+    "x": 343
+   },
+   {
+    "text": "Description",
+    "conf": 0.9996,
+    "y": 504,
+    "x": 84
+   },
+   {
+    "text": "Amount",
+    "conf": 0.9994,
+    "y": 514,
+    "x": 913
+   },
+   {
+    "text": "Advisory -regulatory review",
+    "conf": 0.9704,
+    "y": 555,
+    "x": 82
+   },
+   {
+    "text": "2,425.00",
+    "conf": 0.999,
+    "y": 569,
+    "x": 912
+   },
+   {
+    "text": "Contract markup",
+    "conf": 0.9992,
+    "y": 597,
+    "x": 81
+   },
+   {
+    "text": "2,425.00",
+    "conf": 0.9642,
+    "y": 612,
+    "x": 912
+   },
+   {
+    "text": "TOTALDUE(USD) 4,850.00",
+    "conf": 0.9554,
+    "y": 678,
+    "x": 620
+   },
+   {
+    "text": "Remit payment to:",
+    "conf": 0.9909,
+    "y": 780,
+    "x": 80
+   },
+   {
+    "text": "Citizens Account ****6614",
+    "conf": 0.9854,
+    "y": 823,
+    "x": 78
+   },
+   {
+    "text": "Thank you for your business.",
+    "conf": 0.9815,
+    "y": 1471,
+    "x": 68
+   }
+  ],
+  "text": "Keystone Legal LLP\nINVOICE\nbilling@keystonelegal.com\nInvoice No:\nKL-2026-031\nInvoice Date:\n2026-03-09\nDue Date:\n2026-04-08\nBill To:\nNorthwind Robotics Inc.\nCurrency:\nUSD\nDescription\nAmount\nAdvisory -regulatory review\n2,425.00\nContract markup\n2,425.00\nTOTALDUE(USD) 4,850.00\nRemit payment to:\nCitizens Account ****6614\nThank you for your business."
+ },
+ "scan_metro_MOS-2291.png": {
+  "lines": [
+   {
+    "text": "Metro Office Supply",
+    "conf": 0.9989,
+    "y": 84,
+    "x": 72
+   },
+   {
+    "text": "INVOICE",
+    "conf": 0.9981,
+    "y": 81,
+    "x": 811
+   },
+   {
+    "text": "billing@metrooffice.com",
+    "conf": 0.9938,
+    "y": 146,
+    "x": 70
+   },
+   {
+    "text": "Invoice No:",
+    "conf": 0.9631,
+    "y": 246,
+    "x": 71
+   },
+   {
+    "text": "MOS-2291",
+    "conf": 0.9982,
+    "y": 243,
+    "x": 329
+   },
+   {
+    "text": "Invoice Date:",
+    "conf": 0.9838,
+    "y": 289,
+    "x": 73
+   },
+   {
+    "text": "2026-02-27",
+    "conf": 0.9998,
+    "y": 287,
+    "x": 331
+   },
+   {
+    "text": "Due Date:",
+    "conf": 0.9989,
+    "y": 332,
+    "x": 71
+   },
+   {
+    "text": "2026-03-29",
+    "conf": 0.9999,
+    "y": 331,
+    "x": 332
+   },
+   {
+    "text": "Northwind Robotics Inc.",
+    "conf": 0.9871,
+    "y": 375,
+    "x": 333
+   },
+   {
+    "text": "Bill To:",
+    "conf": 0.9476,
+    "y": 379,
+    "x": 74
+   },
+   {
+    "text": "Currency:",
+    "conf": 0.992,
+    "y": 424,
+    "x": 76
+   },
+   {
+    "text": "USD",
+    "conf": 0.997,
+    "y": 420,
+    "x": 331
+   },
+   {
+    "text": "Amount",
+    "conf": 0.9991,
+    "y": 507,
+    "x": 905
+   },
+   {
+    "text": "Description",
+    "conf": 0.9997,
+    "y": 518,
+    "x": 74
+   },
+   {
+    "text": "Office chairs",
+    "conf": 0.9986,
+    "y": 568,
+    "x": 75
+   },
+   {
+    "text": "772.13",
+    "conf": 0.9998,
+    "y": 561,
+    "x": 905
+   },
+   {
+    "text": "772.13",
+    "conf": 0.9997,
+    "y": 604,
+    "x": 906
+   },
+   {
+    "text": "Toner",
+    "conf": 0.9995,
+    "y": 612,
+    "x": 74
+   },
+   {
+    "text": "Paper",
+    "conf": 0.9997,
+    "y": 653,
+    "x": 74
+   },
+   {
+    "text": "772.14",
+    "conf": 0.9999,
+    "y": 646,
+    "x": 908
+   },
+   {
+    "text": "TOTAL DUE(USD) 2,316.40",
+    "conf": 0.9657,
+    "y": 719,
+    "x": 616
+   },
+   {
+    "text": "Thank you for your business.",
+    "conf": 0.9949,
+    "y": 1486,
+    "x": 88
+   }
+  ],
+  "text": "Metro Office Supply\nINVOICE\nbilling@metrooffice.com\nInvoice No:\nMOS-2291\nInvoice Date:\n2026-02-27\nDue Date:\n2026-03-29\nNorthwind Robotics Inc.\nBill To:\nCurrency:\nUSD\nAmount\nDescription\nOffice chairs\n772.13\n772.13\nToner\nPaper\n772.14\nTOTAL DUE(USD) 2,316.40\nThank you for your business."
+ },
+ "scan_summit_SCG-1187.png": {
+  "lines": [
+   {
+    "text": "Summit Consulting Group",
+    "conf": 0.9915,
+    "y": 87,
+    "x": 64
+   },
+   {
+    "text": "INVOICE",
+    "conf": 0.9983,
+    "y": 79,
+    "x": 805
+   },
+   {
+    "text": "billing@summitcg.com",
+    "conf": 0.9989,
+    "y": 150,
+    "x": 65
+   },
+   {
+    "text": "SCG-1187",
+    "conf": 0.9998,
+    "y": 245,
+    "x": 326
+   },
+   {
+    "text": "Invoice No:",
+    "conf": 0.9963,
+    "y": 249,
+    "x": 66
+   },
+   {
+    "text": "Invoice Date:",
+    "conf": 0.9931,
+    "y": 293,
+    "x": 66
+   },
+   {
+    "text": "2026-03-28",
+    "conf": 0.9999,
+    "y": 288,
+    "x": 326
+   },
+   {
+    "text": "Due Date:",
+    "conf": 0.9989,
+    "y": 336,
+    "x": 68
+   },
+   {
+    "text": "2026-04-27",
+    "conf": 0.9999,
+    "y": 332,
+    "x": 329
+   },
+   {
+    "text": "Northwind Robotics Inc.",
+    "conf": 0.97,
+    "y": 377,
+    "x": 329
+   },
+   {
+    "text": "Bill To:",
+    "conf": 0.9742,
+    "y": 382,
+    "x": 72
+   },
+   {
+    "text": "USD",
+    "conf": 0.9987,
+    "y": 420,
+    "x": 329
+   },
+   {
+    "text": "Currency:",
+    "conf": 0.9935,
+    "y": 427,
+    "x": 74
+   },
+   {
+    "text": "Amount",
+    "conf": 0.9997,
+    "y": 505,
+    "x": 901
+   },
+   {
+    "text": "Description",
+    "conf": 0.9997,
+    "y": 521,
+    "x": 72
+   },
+   {
+    "text": "9,750.00",
+    "conf": 0.9984,
+    "y": 559,
+    "x": 903
+   },
+   {
+    "text": "ERP roadmap - phase 2",
+    "conf": 0.9765,
+    "y": 572,
+    "x": 73
+   },
+   {
+    "text": "TOTAL DUE(USD) 9,750.00",
+    "conf": 0.932,
+    "y": 636,
+    "x": 615
+   },
+   {
+    "text": "Remit payment to:",
+    "conf": 0.997,
+    "y": 757,
+    "x": 79
+   },
+   {
+    "text": "Chase Account ****9057",
+    "conf": 0.9979,
+    "y": 800,
+    "x": 78
+   },
+   {
+    "text": "Thank you for your business.",
+    "conf": 0.9328,
+    "y": 1491,
+    "x": 93
+   }
+  ],
+  "text": "Summit Consulting Group\nINVOICE\nbilling@summitcg.com\nSCG-1187\nInvoice No:\nInvoice Date:\n2026-03-28\nDue Date:\n2026-04-27\nNorthwind Robotics Inc.\nBill To:\nUSD\nCurrency:\nAmount\nDescription\n9,750.00\nERP roadmap - phase 2\nTOTAL DUE(USD) 9,750.00\nRemit payment to:\nChase Account ****9057\nThank you for your business."
+ }
+}

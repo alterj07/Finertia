@@ -48,7 +48,7 @@ function DeepLink({ onNode }: { onNode: (id: string) => void }) {
 // stable for d3). `nodesSnapshot`/`linksSnapshot` below are the render-facing
 // copies, refreshed on a rAF-throttled cadence from the tick handler — this
 // is what JSX actually reads, so no ref is ever read during render.
-export function GraphCanvas() {
+export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<Simulation<SimNode, SimLink> | null>(null);
@@ -69,7 +69,7 @@ export function GraphCanvas() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const expansionsRef = useRef<GraphView["expansions"]>({});
 
-  // ---- Load the live memory graph --------------------------------------
+  // ---- Load the live memory graph (again whenever reloadToken changes) ----
   useEffect(() => {
     let cancelled = false;
     fetchGraphView()
@@ -84,7 +84,7 @@ export function GraphCanvas() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken]);
 
   const scheduleRender = useCallback(() => {
     if (rafRef.current != null) return;

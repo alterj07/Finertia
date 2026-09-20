@@ -56,7 +56,8 @@ def test_llm_plan_unknown_agent_falls_back() -> None:
     llm = canned([{"agent": "Nonexistent", "params": {}}])
     plan = Orchestrator(default_registry(), llm).plan("reconcile")
     assert plan.planner == "fallback"
-    assert [c.agent for c in plan.calls] == ["Cash & Reconciliation"]
+    # no capability keyword matched, so the fallback runs every registered agent
+    assert [c.agent for c in plan.calls] == ["Cash & Reconciliation", "AP/AR"]
 
 
 def test_llm_plan_garbage_falls_back() -> None:
@@ -67,7 +68,11 @@ def test_llm_plan_garbage_falls_back() -> None:
 def test_null_llm_falls_back() -> None:
     plan = Orchestrator(default_registry(), NullLLM()).plan("anything")
     assert plan.planner == "fallback"
+    assert [c.agent for c in plan.calls] == ["Cash & Reconciliation", "AP/AR"]
+    plan = Orchestrator(default_registry(), NullLLM()).plan("bank reconciliation")
     assert [c.agent for c in plan.calls] == ["Cash & Reconciliation"]
+    plan = Orchestrator(default_registry(), NullLLM()).plan("receivables aging")
+    assert [c.agent for c in plan.calls] == ["AP/AR"]
 
 
 def test_fallback_scoring_two_agents() -> None:
@@ -85,18 +90,18 @@ def test_fallback_scoring_two_agents() -> None:
 
 def test_orchestrator_run_end_to_end(ctx: AgentContext) -> None:
     result = Orchestrator(default_registry(), NullLLM()).run(ctx, "close the books for Q1")
-    assert len(result.results) == 1
+    assert [r.agent for r in result.results] == ["Cash & Reconciliation", "AP/AR"]
     assert result.results[0].summary["difference"] == 0
+    assert result.results[1].summary["open_ar_total"] > 0
     runs = ctx.memory.recall(code="ORCHESTRATION_RUN")
     assert len(runs) == 1
-    assert runs[0].entities == ["Cash & Reconciliation"]
+    assert runs[0].entities == ["Cash & Reconciliation", "AP/AR"]
 
 
 def test_api(client, data_dir: Path) -> None:
     specs = client.get("/api/agents").json()
-    assert len(specs) == 1
-    assert specs[0]["name"] == "Cash & Reconciliation"
-    r = client.post("/api/orchestrator/run", json={"request": "reconcile Q1"})
+    assert [s["name"] for s in specs] == ["Cash & Reconciliation", "AP/AR"]
+    r = client.post("/api/orchestrator/run", json={"request": "bank reconciliation Q1"})
     assert r.status_code == 200
     body = r.json()
     assert body["plan"]["planner"] in ("llm", "fallback")

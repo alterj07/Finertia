@@ -60,13 +60,17 @@ app/
       models.py         RuleParams, Match, ReconSummary
       rules.py          MatchRule ABC + 4 ported passes + RuleBook (pins/blocks/params)
       agent.py          CashReconAgent — bank-to-book recon, emits findings to memory
+    apar/
+      agent.py          APARAgent — deterministic AP/AR: duplicates, amount mismatches vs
+                        OCR'd scans, accruals, remit-to changes, short pays, promises to
+                        pay, cash application, AR aging, payment run
   chat/
     models.py           ChatMessage/ToolCall/ToolEvent/ChatSession/ChatResponse
     sessions.py         ChatSessionStore — JSON-file session list (var/chat_sessions.json)
     tools.py            build_tools() — graph/orchestrator/feedback tools with citations
     service.py          ChatService — the tool-calling loop (≤8 steps, OpenAI tools API)
   api/
-    recon.py            POST /api/agents/recon/run
+    recon.py            POST /api/agents/recon/run, POST /api/agents/apar/run
     memory.py           GET /api/memory/{graph,stats,node,context,search,signals,precedents,findings}
                         POST /api/memory/findings, POST /api/memory/reset
     feedback.py         GET/POST /api/feedback, DELETE /api/feedback/{id}
@@ -155,3 +159,32 @@ What an agent does with it:
 | `GET /api/memory/search?q=damaged units` | keyword search over every node incl. email bodies and memos |
 | `POST /api/memory/findings` | write a finding back; entities/evidence ids attach to the seeded nodes |
 | `GET /api/memory/graph?types=invoice&types=bank_txn` | slice for a force-graph visualisation |
+
+### AP/AR agent and OCR
+
+`POST /api/agents/apar/run` (or the orchestrator with "receivables", "payables",
+"invoices", "aging"...) runs the AP/AR agent. It is fully rule-based over the
+memory graph and writes one finding per issue with evidence ids and, where
+applicable, a proposed journal entry:
+
+| Code | What it means | Proposed action |
+| --- | --- | --- |
+| `DUPLICATE_PAYMENT` | one invoice posted and paid twice under two spellings | reverse expense, recover from vendor |
+| `AMOUNT_MISMATCH` | booked amount differs from the invoice, confirmed by scan/email | correcting entry |
+| `UNRECORDED_LIABILITY` | invoice received (scan/email) but never posted | accrual |
+| `VENDOR_BANK_CHANGE` | remit-to account differs from the vendor's history | hold / recall, verify by phone |
+| `SHORT_PAY_DISPUTE` | customer short-paid with a written reason | credit memo |
+| `PROMISE_TO_PAY` | customer committed to a date by email | forecast on that date |
+| `AR_AGING` / `PAYMENT_RUN` | period-end outputs (data in the finding) | — |
+
+Scans are read by OCR **offline**: `scripts/ocr_scans.py` runs RapidOCR over
+`data/scanned_invoices/*.png` and writes `ocr.json` next to them (committed).
+Seeding parses invoice number, dates, currency, total and remit account from
+that text onto each scan node and compares them to the invoice feed
+(`SCAN_OF` edge carries `total_diff` / `remit_match`). Runtime never calls an
+OCR engine, so results are identical on every machine. Re-run after changing a
+scan:
+
+```bash
+cd backend && uv run --no-project --with rapidocr-onnxruntime --with pillow python scripts/ocr_scans.py
+```

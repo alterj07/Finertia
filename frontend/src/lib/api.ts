@@ -147,3 +147,43 @@ export function fetchMemoryContext(id: string, depth = 1): Promise<MemoryContext
     `/api/memory/context?id=${encodeURIComponent(id)}&depth=${depth}&max_nodes=40`,
   );
 }
+
+// ---- agents ----
+
+export interface AgentSpec {
+  name: string;
+  description: string;
+  capabilities: string[];
+  params: Record<string, unknown>;
+}
+
+export interface AgentRunResult {
+  summary: Record<string, unknown>;
+  findings: { code: string; key: string; title: string; severity: string }[];
+}
+
+/** Dedicated run endpoints per registered agent. */
+const AGENT_ROUTES: Record<string, string> = {
+  "Cash & Reconciliation": "/api/agents/recon/run",
+  "AP/AR": "/api/agents/apar/run",
+};
+
+export function listAgents(): Promise<AgentSpec[]> {
+  return apiFetch<AgentSpec[]>("/api/agents");
+}
+
+export function runAgent(name: string, params: Record<string, unknown> = {}): Promise<AgentRunResult> {
+  const route = AGENT_ROUTES[name];
+  const init = {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  };
+  if (route) {
+    return apiFetch<AgentRunResult>(route, { ...init, body: JSON.stringify(params) });
+  }
+  // Unknown agent: ask the orchestrator by name and unwrap its first result.
+  return apiFetch<{ results: AgentRunResult[] }>("/api/orchestrator/run", {
+    ...init,
+    body: JSON.stringify({ request: name, defaults: params }),
+  }).then((r) => r.results[0] ?? { summary: {}, findings: [] });
+}
