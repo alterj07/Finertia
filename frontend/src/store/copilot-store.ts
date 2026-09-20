@@ -141,13 +141,22 @@ export const useCopilotStore = create<CopilotState>()(
     }),
     {
       name: "finertia-copilot",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         messages: s.messages,
         sessionId: s.sessionId,
         opened: s.opened,
       }),
+      // v1 seeded a longer opening line that's since changed; drop any
+      // persisted thread that still starts with it so it regenerates fresh.
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<CopilotState>;
+        if (version < 2 && state.messages?.[0]?.role === "agent") {
+          return { ...state, messages: [], opened: false } as CopilotState;
+        }
+        return state as CopilotState;
+      },
       skipHydration: true,
     },
   ),

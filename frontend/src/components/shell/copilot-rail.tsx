@@ -76,9 +76,9 @@ export function CopilotRail() {
 
   const content = (
     <div className="flex h-full flex-col bg-paper-raised">
-      <div className="flex shrink-0 items-start justify-between gap-2 border-b border-rule px-4 py-4">
+      <div className="flex h-[73px] shrink-0 items-center justify-between gap-2 border-b border-rule px-4">
         <div>
-          <div className="font-serif text-xl text-ink">Ask Finertia!</div>
+          <div className="font-serif text-xl text-ink">Ask Finertia</div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button

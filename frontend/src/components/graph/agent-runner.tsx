@@ -12,7 +12,7 @@ type RunState =
 
 /** One button per registered backend agent. Running one writes its findings to
  * shared memory; the parent reloads the graph so they show up immediately. */
-export function AgentRunner({ onRan }: { onRan: () => void }) {
+export function AgentRunner({ onRan }: { onRan: (agent: string) => void }) {
   const [agents, setAgents] = useState<AgentSpec[]>([]);
   const [state, setState] = useState<RunState>({ status: "idle" });
 
@@ -34,7 +34,7 @@ export function AgentRunner({ onRan }: { onRan: () => void }) {
             ? `bank vs book difference ${(s.difference as number).toFixed(2)}`
             : "";
       setState({ status: "done", agent: name, findings: result.findings.length, note });
-      onRan();
+      onRan(name);
     } catch (err) {
       setState({
         status: "error",

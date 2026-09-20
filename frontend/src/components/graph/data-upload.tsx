@@ -204,9 +204,6 @@ export function DataUpload({ onUploaded }: { onUploaded: () => void }) {
         <span className="font-mono text-2xs uppercase tracking-wide text-ink-soft">
           Upload data
         </span>
-        <span className="text-2xs text-ink-soft">
-          .csv (bank or GL) · .parquet (GL) · .jsonl/.json (invoices) · .eml · .zip — or a folder
-        </span>
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"

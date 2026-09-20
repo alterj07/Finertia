@@ -15,6 +15,7 @@ import { drag as d3drag } from "d3-drag";
 import { select as d3select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity, type ZoomTransform } from "d3-zoom";
 import { fetchGraphView } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { useCopilotStore } from "@/store/copilot-store";
 import type { GraphView } from "@/lib/types";
 import {
@@ -33,6 +34,11 @@ import { GraphLegend } from "@/components/graph/graph-legend";
 import { GraphDetailPanel } from "@/components/graph/graph-detail-panel";
 
 type FilterId = "all" | "agents" | (typeof MODULE_GROUPS)[number];
+
+export interface RunInfo {
+  agent: string;
+  token: number;
+}
 
 // SVG labels are capped at 24 chars; the full label stays on the node for
 // the <title> tooltip, the detail panel and chat matching.
@@ -55,7 +61,13 @@ function DeepLink({ onNode }: { onNode: (id: string) => void }) {
 // stable for d3). `nodesSnapshot`/`linksSnapshot` below are the render-facing
 // copies, refreshed on a rAF-throttled cadence from the tick handler — this
 // is what JSX actually reads, so no ref is ever read during render.
-export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
+export function GraphCanvas({
+  reloadToken = 0,
+  runInfo = null,
+}: {
+  reloadToken?: number;
+  runInfo?: RunInfo | null;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<Simulation<SimNode, SimLink> | null>(null);
@@ -82,6 +94,24 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
   const [fresh, setFresh] = useState<{ nodes: Set<string>; links: Set<string>; touched: Set<string> }>(
     { nodes: new Set(), links: new Set(), touched: new Set() },
   );
+  // Bottom-right status line — confirms a run actually happened, even when
+  // it produced no new nodes (the data was already up to date).
+  const [notice, setNotice] = useState<{ text: string; tone: "gold" | "neutral" } | null>(null);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showNotice(text: string, tone: "gold" | "neutral") {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    setNotice({ text, tone });
+    if (tone === "neutral") {
+      noticeTimerRef.current = setTimeout(() => setNotice(null), 5000);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    };
+  }, []);
 
   const scheduleRender = useCallback(() => {
     if (rafRef.current != null) return;
@@ -130,7 +160,16 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
           (e) => !existingLinks.has(linkKey(e.source, e.target)) && !existingLinks.has(linkKey(e.target, e.source)),
         );
         const newNodes = data.nodes.filter((n) => !existing.has(n.id));
-        if (newNodes.length === 0 && newLinks.length === 0) return;
+
+        const isRunTriggered = runInfo?.token === reloadToken;
+        const agentLabel = isRunTriggered ? runInfo!.agent : null;
+
+        if (newNodes.length === 0 && newLinks.length === 0) {
+          if (agentLabel) {
+            showNotice(`${agentLabel}: run complete — already up to date, no new findings`, "neutral");
+          }
+          return;
+        }
 
         const added: SimNode[] = newNodes.map((n) => {
           const anchorId = newLinks.find((e) => e.source === n.id || e.target === n.id);
@@ -142,12 +181,10 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
             y: (anchor?.y ?? 0) + (Math.random() - 0.5) * 40,
           };
         });
-        nodesRef.current = [...nodesRef.current, ...added];
-        const known = new Set(nodesRef.current.map((n) => n.id));
+        const potentialIds = new Set([...existing.keys(), ...added.map((n) => n.id)]);
         const addedLinks: SimLink[] = newLinks
-          .filter((e) => known.has(e.source) && known.has(e.target))
+          .filter((e) => potentialIds.has(e.source) && potentialIds.has(e.target))
           .map((e) => ({ source: e.source, target: e.target, rel: e.rel }));
-        linksRef.current = [...linksRef.current, ...addedLinks];
 
         const freshNodes = new Set(added.map((n) => n.id));
         const touched = new Set<string>();
@@ -160,20 +197,62 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
           links: new Set(newLinks.map((e) => linkKey(e.source, e.target))),
           touched,
         });
+        showNotice(
+          agentLabel
+            ? `${agentLabel}: ${added.length} new node${added.length === 1 ? "" : "s"}, ${addedLinks.length} new link${addedLinks.length === 1 ? "" : "s"}`
+            : `New since last run: ${added.length} nodes, ${addedLinks.length} links`,
+          "gold",
+        );
 
-        const sim = simulationRef.current;
-        if (sim) {
-          sim.nodes(nodesRef.current);
-          (sim.force("link") as ForceLink<SimNode, SimLink>).links(linksRef.current);
-          refreshForces();
-          if (reducedMotionRef.current) {
+        // Reveal new nodes one at a time (and their links as both ends
+        // become available) instead of dropping the whole batch in at once —
+        // reduced motion still gets the instant, fully-settled layout.
+        if (reducedMotionRef.current) {
+          nodesRef.current = [...nodesRef.current, ...added];
+          linksRef.current = [...linksRef.current, ...addedLinks];
+          const sim = simulationRef.current;
+          if (sim) {
+            sim.nodes(nodesRef.current);
+            (sim.force("link") as ForceLink<SimNode, SimLink>).links(linksRef.current);
+            refreshForces();
             sim.alpha(1).stop();
             for (let i = 0; i < 300; i += 1) sim.tick();
-          } else {
-            sim.alpha(0.5).restart();
           }
+          scheduleRender();
+          return;
         }
-        scheduleRender();
+
+        const knownIds = new Set(nodesRef.current.map((n) => n.id));
+        const interval = Math.max(60, Math.min(220, Math.round(4000 / added.length)));
+        let i = 0;
+        const revealNext = () => {
+          if (cancelled) return;
+          if (i >= added.length) return;
+          const node = added[i];
+          i += 1;
+          nodesRef.current = [...nodesRef.current, node];
+          knownIds.add(node.id);
+
+          const ready = addedLinks.filter(
+            (l) =>
+              !linksRef.current.includes(l) &&
+              knownIds.has(linkEndpointId(l.source)) &&
+              knownIds.has(linkEndpointId(l.target)),
+          );
+          if (ready.length) linksRef.current = [...linksRef.current, ...ready];
+
+          const sim = simulationRef.current;
+          if (sim) {
+            sim.nodes(nodesRef.current);
+            (sim.force("link") as ForceLink<SimNode, SimLink>).links(linksRef.current);
+            refreshForces();
+            sim.alpha(Math.max(sim.alpha(), 0.22)).restart();
+          }
+          scheduleRender();
+
+          if (i < added.length) setTimeout(revealNext, interval);
+        };
+        revealNext();
       })
       .catch((err: unknown) => {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load graph");
@@ -210,7 +289,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
           .distance(70)
           .strength(0.5),
       )
-      .force("charge", forceManyBody().strength(-190))
+      .force("charge", forceManyBody().strength(-110))
       .force("center", forceCenter(width / 2, height / 2))
       .on("tick", scheduleRender);
 
@@ -735,15 +814,21 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
         )}
         {view && !hasInteracted && <GraphHint />}
         <GraphLegend />
-        {fresh.nodes.size + fresh.links.size > 0 && (
-          <div className="absolute right-3 bottom-3 flex items-center gap-2 border border-gold/40 bg-paper-raised/95 px-2.5 py-1.5 text-xs backdrop-blur-sm">
-            <span className="h-2 w-2 rounded-full bg-gold" aria-hidden />
-            <span className="text-ink">
-              New since last run: {fresh.nodes.size} nodes, {fresh.links.size} links
-            </span>
+        {notice && (
+          <div
+            className={cn(
+              "absolute right-3 bottom-3 flex items-center gap-2 border bg-paper-raised/95 px-2.5 py-1.5 text-xs backdrop-blur-sm",
+              notice.tone === "gold" ? "border-gold/40" : "border-rule",
+            )}
+          >
+            {notice.tone === "gold" && <span className="h-2 w-2 rounded-full bg-gold" aria-hidden />}
+            <span className="text-ink">{notice.text}</span>
             <button
               type="button"
-              onClick={() => setFresh({ nodes: new Set(), links: new Set(), touched: new Set() })}
+              onClick={() => {
+                setNotice(null);
+                setFresh({ nodes: new Set(), links: new Set(), touched: new Set() });
+              }}
               className="text-ink-soft hover:text-ink"
             >
               clear

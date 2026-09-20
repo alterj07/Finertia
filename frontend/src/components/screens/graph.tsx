@@ -1,17 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AgentRunner } from "@/components/graph/agent-runner";
 import { DataUpload } from "@/components/graph/data-upload";
-import { GraphCanvas } from "@/components/graph/graph-canvas";
+import { GraphCanvas, type RunInfo } from "@/components/graph/graph-canvas";
 
 export function GraphScreen() {
   const [reloadToken, setReloadToken] = useState(0);
+  const [runInfo, setRunInfo] = useState<RunInfo | null>(null);
+  const tokenRef = useRef(0);
+
+  function bump(agent: string | null) {
+    tokenRef.current += 1;
+    setReloadToken(tokenRef.current);
+    setRunInfo(agent ? { agent, token: tokenRef.current } : null);
+  }
+
   return (
     <div className="stagger">
-      <DataUpload onUploaded={() => setReloadToken((t) => t + 1)} />
-      <AgentRunner onRan={() => setReloadToken((t) => t + 1)} />
-      <GraphCanvas reloadToken={reloadToken} />
+      <DataUpload onUploaded={() => bump(null)} />
+      <AgentRunner onRan={(agent) => bump(agent)} />
+      <GraphCanvas reloadToken={reloadToken} runInfo={runInfo} />
     </div>
   );
 }
