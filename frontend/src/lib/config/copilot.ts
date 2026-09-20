@@ -71,6 +71,16 @@ export const COPILOT_SCRIPTS: Record<ModuleKey, ModuleCopilotScript> = {
       "List open receivables past due",
     ],
   },
+  "flight-simulator": {
+    opening:
+      "Flight Simulator is a read-only planning sandbox. Adjust one cash lever, compare it with the base plan, then request a concise decision review.",
+    openingCitations: [],
+    suggestions: [
+      "What happens if collections arrive 14 days earlier?",
+      "How does delaying a vendor payment affect the cash floor?",
+      "Which scenario should I review first?",
+    ],
+  },
   audit: {
     opening:
       "Audit view. Ask about vendor bank-detail changes, self-approved journals, or any control signal the graph has surfaced.",
