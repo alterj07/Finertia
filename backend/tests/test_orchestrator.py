@@ -115,7 +115,7 @@ def test_api(client, data_dir: Path) -> None:
 
 
 def test_registry_surface() -> None:
-    assert default_registry().names() == ["Cash & Reconciliation", "AP/AR"]
+    assert default_registry().names() == ["Cash & Reconciliation", "AP/AR", "Deals"]
 
 
 def _brief(**kw: Any):
@@ -154,7 +154,7 @@ def test_fallback_scores_signals() -> None:
     plan = orch.plan("reconcile the bank", brief=brief)
     assert {c.agent for c in plan.calls} == {"Cash & Reconciliation", "AP/AR"}
     plan = orch.plan("", brief=_brief())
-    assert {c.agent for c in plan.calls} == {"Cash & Reconciliation", "AP/AR"}
+    assert {c.agent for c in plan.calls} == {"Cash & Reconciliation", "AP/AR", "Deals"}
 
 
 def test_consult_memory(ctx: AgentContext) -> None:

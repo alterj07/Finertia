@@ -51,7 +51,7 @@ def test_ingest_counts(store, es_lake) -> None:
     assert store.count("fin-bank") == 55
     assert store.count("fin-gl") == 252
     assert store.count("fin-invoices") == 34
-    assert store.count("fin-emails") == 12
+    assert store.count("fin-emails") == 19
 
 
 def test_bank_between_matches_local(es_lake, data_dir: Path) -> None:

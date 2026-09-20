@@ -1,14 +1,6 @@
 from fastapi import APIRouter
 
-<<<<<<< HEAD
-from app.api import chat, dashboard, feedback, health, memory, orchestrator, recon, storage
-=======
-<<<<<<< HEAD
-from app.api import chat, deals, feedback, health, memory, orchestrator, recon
-=======
-from app.api import chat, feedback, health, memory, orchestrator, recon, storage
->>>>>>> 0ae6d8c84499fe32930736588fadd02c8c9a0fec
->>>>>>> origin/main
+from app.api import chat, dashboard, deals, feedback, health, memory, orchestrator, recon, storage
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(health.router)

@@ -64,8 +64,29 @@ class OrchestrationResult(BaseModel):
     results: list[AgentResult]
 
 
+_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "for",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "which",
+}
+
+
 def _words(text: str) -> set[str]:
-    return set(re.findall(r"[a-z0-9]+", text.lower()))
+    return set(re.findall(r"[a-z0-9]+", text.lower())) - _STOPWORDS
 
 
 class Orchestrator:
