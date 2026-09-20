@@ -175,6 +175,18 @@ export function runOrchestrator(
   });
 }
 
+export interface AgentStatus {
+  state: "idle" | "skipped" | "running" | "done" | "failed";
+  started_at: string | null;
+  finished_at: string | null;
+  error: string | null;
+  agents: string[];
+}
+
+export function getAgentStatus(): Promise<AgentStatus> {
+  return apiFetch<AgentStatus>("/api/orchestrator/status");
+}
+
 // ---- agents ----
 
 export interface AgentSpec {

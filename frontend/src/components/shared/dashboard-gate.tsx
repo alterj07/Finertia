@@ -2,7 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import { runOrchestrator } from "@/lib/api";
+import { ApiError, runOrchestrator } from "@/lib/api";
+import { useAgentStatus } from "@/lib/use-agent-status";
 
 interface NeedsRun {
   needs_run?: boolean;
@@ -26,6 +27,7 @@ export function DashboardGate<T extends NeedsRun>({
 }) {
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
+  const { status, refresh } = useAgentStatus(onRan);
 
   async function handleRun(request: string) {
     setRunning(true);
@@ -33,9 +35,17 @@ export function DashboardGate<T extends NeedsRun>({
     try {
       await runOrchestrator(request);
       onRan();
+      refresh();
     } catch (err) {
-      setRunError(err instanceof Error ? err.message : "run failed");
+      setRunError(
+        err instanceof ApiError && err.status === 409
+          ? "Agents are already running"
+          : err instanceof Error
+            ? err.message
+            : "run failed",
+      );
       setRunning(false);
+      refresh();
     }
   }
 
@@ -57,10 +67,21 @@ export function DashboardGate<T extends NeedsRun>({
   if (!data) return null;
   return (
     <div>
-      {data.needs_run && (
+      {data.needs_run && status?.state === "running" && (
+        <div className="mb-3 flex items-center gap-2 border border-rule bg-paper-raised px-3 py-2">
+          <Loader2 size={12} className="animate-spin text-ink-soft" aria-hidden />
+          <span className="text-xs text-ink-soft">
+            Agents are analysing the data — this screen fills in automatically
+            when they finish.
+          </span>
+        </div>
+      )}
+      {data.needs_run && status?.state !== "running" && (
         <div className="mb-3 flex flex-wrap items-center gap-2 border border-rule bg-paper-raised px-3 py-2">
           <span className="text-xs text-ink-soft">
-            No agent findings yet — run the agents to populate this screen.
+            {status?.state === "failed"
+              ? `Automatic agent run failed: ${status.error ?? "unknown error"}`
+              : "No agent findings yet — run the agents to populate this screen."}
           </span>
           <button
             type="button"

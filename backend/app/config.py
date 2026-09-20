@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     es_url: str = "http://localhost:9200"
     es_api_key: SecretStr | None = None
     es_index_prefix: str = ""
+    auto_run_agents: bool = True
+    auto_run_request: str = (
+        "Close the books for Q1: reconcile cash, review payables and receivables, "
+        "and review the deal pipeline"
+    )
 
     @field_validator("cors_origins", mode="before")
     @classmethod

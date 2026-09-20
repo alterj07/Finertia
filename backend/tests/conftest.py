@@ -23,6 +23,7 @@ def client(tmp_path, monkeypatch) -> TestClient:
     monkeypatch.setattr(settings, "data_dir", DATA_DIR)
     monkeypatch.setattr(settings, "openai_api_key", None)
     monkeypatch.setattr(settings, "storage_backend", "local")
+    monkeypatch.setattr(settings, "auto_run_agents", False)
     with TestClient(create_app()) as c:
         yield c
 

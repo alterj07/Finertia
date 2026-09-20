@@ -43,8 +43,25 @@ def get_brief(
     )
 
 
+@router.get("/orchestrator/status")
+def get_status(request: Request) -> dict:
+    warmup = getattr(request.app.state, "warmup", None)
+    if warmup is None:
+        return {
+            "state": "idle",
+            "started_at": None,
+            "finished_at": None,
+            "error": None,
+            "agents": [],
+        }
+    return warmup.status()
+
+
 @router.post("/orchestrator/run")
 def run_orchestrator(req: OrchestrateRequest, request: Request) -> OrchestrationResult:
+    warmup = getattr(request.app.state, "warmup", None)
+    if warmup is not None and warmup.state == "running":
+        raise HTTPException(status_code=409, detail="agents are already running")
     return Orchestrator(request.app.state.registry, request.app.state.llm).run(
         _ctx(request), req.request, defaults=req.defaults
     )

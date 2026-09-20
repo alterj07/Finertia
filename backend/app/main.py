@@ -5,9 +5,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.agents.base import AgentContext
 from app.agents.feedback import FeedbackStore
 from app.agents.llm import build_llm
 from app.agents.registry import default_registry
+from app.agents.warmup import AgentWarmup
 from app.api.router import api_router
 from app.chat.sessions import ChatSessionStore
 from app.config import settings
@@ -86,6 +88,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.feedback = FeedbackStore(settings.feedback_path)
     app.state.llm = build_llm(settings)
     app.state.registry = default_registry()
+    app.state.warmup = AgentWarmup(
+        lambda: AgentContext(
+            lake=app.state.lake,
+            memory=app.state.memory,
+            feedback=app.state.feedback,
+            llm=app.state.llm,
+        ),
+        app.state.registry,
+        app.state.llm,
+        settings.auto_run_request,
+    )
+    if settings.auto_run_agents and app.state.lake is not None:
+        app.state.warmup.start()
     app.state.chat_sessions = ChatSessionStore(settings.chat_sessions_path)
     yield
 

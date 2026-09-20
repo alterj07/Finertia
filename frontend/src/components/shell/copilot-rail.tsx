@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChatText } from "@/components/shared/chat-text";
+import { useAgentStatus } from "@/lib/use-agent-status";
 import { COPILOT_SCRIPTS } from "@/lib/config/copilot";
 import { useAppStore } from "@/store/app-store";
 import { useCopilotStore } from "@/store/copilot-store";
@@ -27,6 +28,7 @@ export function CopilotRail() {
   const [input, setInput] = useState("");
   const [consumedDraft, setConsumedDraft] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const { status: agentStatus } = useAgentStatus();
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -138,6 +140,11 @@ export function CopilotRail() {
             </button>
           ))}
         </div>
+        {agentStatus?.state === "running" && (
+          <p className="mb-2 text-xs text-ink-soft">
+            Agents are analysing the data… answers will improve in a moment.
+          </p>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
