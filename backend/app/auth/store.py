@@ -31,6 +31,7 @@ class UserStore(Protocol):
     def get(self, id: str) -> User | None: ...
     def find(self, identifier: str) -> User | None: ...
     def create(self, user: User) -> User: ...
+    def update(self, user: User) -> User: ...
     def count(self) -> int: ...
 
 
@@ -61,6 +62,11 @@ class LocalUserStore:
         if self.find(user.email) or self.find(user.username):
             raise UserExists("email or username already registered")
         self.users.append(user)
+        self._save()
+        return user
+
+    def update(self, user: User) -> User:
+        self.users = [user if u.id == user.id else u for u in self.users]
         self._save()
         return user
 
@@ -103,6 +109,15 @@ class ElasticUserStore:
     def create(self, user: User) -> User:
         if self.find(user.email) or self.find(user.username):
             raise UserExists("email or username already registered")
+        self.store.es.index(
+            index=self._name(),
+            id=user.id,
+            document=user.model_dump(mode="json"),
+            refresh="wait_for",
+        )
+        return user
+
+    def update(self, user: User) -> User:
         self.store.es.index(
             index=self._name(),
             id=user.id,

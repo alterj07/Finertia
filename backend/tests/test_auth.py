@@ -1,5 +1,8 @@
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
+from app.auth.service import AuthService
+from app.auth.store import LocalUserStore
 from app.config import settings
 from app.main import create_app
 
@@ -78,6 +81,9 @@ def test_auth_disabled_lets_anon_in(tmp_path, monkeypatch, data_dir) -> None:
     monkeypatch.setattr(settings, "feedback_path", tmp_path / "feedback.json")
     monkeypatch.setattr(settings, "chat_sessions_path", tmp_path / "chat_sessions.json")
     monkeypatch.setattr(settings, "users_path", tmp_path / "users.json")
+    monkeypatch.setattr(
+        settings, "demo_admin_password", SecretStr("test-admin-pw")
+    )
     monkeypatch.setattr(settings, "data_dir", data_dir)
     monkeypatch.setattr(settings, "openai_api_key", None)
     monkeypatch.setattr(settings, "storage_backend", "local")
@@ -107,3 +113,23 @@ def test_chat_sessions_are_per_user(client: TestClient) -> None:
     assert session.id not in {s["id"] for s in eve.get("/api/chat/sessions").json()}
     assert eve.delete(f"/api/chat/sessions/{session.id}").status_code == 404
     assert client.delete(f"/api/chat/sessions/{session.id}").status_code == 200
+
+
+def test_admin_not_seeded_without_password(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "demo_admin_password", None)
+    auth = AuthService(LocalUserStore(tmp_path / "users.json"), settings)
+    assert auth.seed_admin() is None
+    assert auth.store.find("admin") is None
+    assert auth.login("admin", "anything") is None
+
+
+def test_admin_password_rotation(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "demo_admin_password", SecretStr("old-pw-123"))
+    auth = AuthService(LocalUserStore(tmp_path / "users.json"), settings)
+    auth.seed_admin()
+    assert auth.login("admin", "old-pw-123") is not None
+
+    monkeypatch.setattr(settings, "demo_admin_password", SecretStr("new-pw-456"))
+    auth.seed_admin()
+    assert auth.login("admin", "old-pw-123") is None
+    assert auth.login("admin", "new-pw-456") is not None

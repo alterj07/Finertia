@@ -96,11 +96,24 @@ class AuthService:
             return None
         return user
 
-    def seed_admin(self) -> User:
+    def seed_admin(self) -> User | None:
+        configured = self.settings.demo_admin_password
+        if configured is None or not configured.get_secret_value():
+            log.warning("DEMO_ADMIN_PASSWORD unset — demo admin not seeded")
+            return None
+        password = configured.get_secret_value()
         existing = self.store.find(self.settings.demo_admin_username)
         if existing is not None:
+            if not verify_password(
+                password, existing.password_salt, existing.password_hash
+            ):
+                salt, digest = hash_password(password)
+                existing = existing.model_copy(
+                    update={"password_salt": salt, "password_hash": digest}
+                )
+                self.store.update(existing)
             return existing
-        salt, digest = hash_password(self.settings.demo_admin_password.get_secret_value())
+        salt, digest = hash_password(password)
         user = User(
             id="admin",
             email="admin@finertia.local",

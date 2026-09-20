@@ -190,8 +190,9 @@ Accounts are email + password and live in the `users` Elasticsearch index
 workspace — the data, memory graph and findings are common; chat history is
 per user.
 
-- Demo account seeded at startup: **user `admin` / password `password`**
-  (override with `DEMO_ADMIN_USERNAME` / `DEMO_ADMIN_PASSWORD`).
+- Demo admin `admin` is seeded at startup; its password comes from
+  `DEMO_ADMIN_PASSWORD` (required — not seeded if unset). Username override:
+  `DEMO_ADMIN_USERNAME`.
 - `POST /api/auth/signup {email, password, name}`, `POST /api/auth/login
   {identifier, password}` → `{token, user}`, `GET /api/auth/me`.
 - Set `AUTH_SECRET` (32+ random bytes) in production; tokens last
