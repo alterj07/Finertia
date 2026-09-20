@@ -19,8 +19,8 @@ export default function AutoPaidLedger() {
 
   return (
     <div>
-      <Link href="/payables" className="text-xs text-ink-soft underline decoration-rule underline-offset-2 hover:text-ink">
-        ← Back to Payables
+      <Link href="/financial-operations?tab=ap-ar" className="text-xs text-ink-soft underline decoration-rule underline-offset-2 hover:text-ink">
+        ← Back to Financial Operations
       </Link>
       <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
         {(d) => (

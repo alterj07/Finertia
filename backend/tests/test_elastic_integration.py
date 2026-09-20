@@ -14,7 +14,7 @@ pytest.importorskip("elasticsearch")
 from app.agents.base import AgentContext  # noqa: E402
 from app.agents.feedback import FeedbackStore  # noqa: E402
 from app.agents.llm import NullLLM  # noqa: E402
-from app.agents.recon.agent import CashReconAgent  # noqa: E402
+from app.agents.recon.agent import ReconAgent  # noqa: E402
 from app.data.es_lake import ElasticDataLake  # noqa: E402
 from app.data.es_store import (
     MAPPINGS,  # noqa: E402
@@ -85,7 +85,7 @@ def test_recon_parity(es_lake, tmp_path) -> None:
         memory=MemoryGraph(tmp_path / "memory_graph.json"),
         feedback=FeedbackStore(tmp_path / "feedback.json"),
     )
-    result = CashReconAgent().run(ctx)
+    result = ReconAgent().run(ctx)
     assert result.summary["adjusted_bank"] == pytest.approx(428321.64, abs=0.01)
     assert result.summary["difference"] == 0.0
 

@@ -15,8 +15,9 @@ import { drag as d3drag } from "d3-drag";
 import { select as d3select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity, type ZoomTransform } from "d3-zoom";
 import { fetchGraphView } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { useCopilotStore } from "@/store/copilot-store";
-import type { GraphView } from "@/lib/types";
+import type { GraphGroup, GraphView } from "@/lib/types";
 import {
   GROUP_COLOR,
   GROUP_LABEL,
@@ -28,11 +29,39 @@ import {
   type SimNode,
 } from "@/lib/graph-utils";
 import { FilterChip } from "@/components/shared/filter-chip";
-import { GraphHint } from "@/components/graph/graph-hint";
 import { GraphLegend } from "@/components/graph/graph-legend";
 import { GraphDetailPanel } from "@/components/graph/graph-detail-panel";
 
 type FilterId = "all" | "agents" | (typeof MODULE_GROUPS)[number];
+
+export interface RunInfo {
+  agent: string;
+  token: number;
+}
+
+// Whole-word mentions of a category (rather than one specific node) — the
+// chatbot saying "the reconciliation" or "AP/AR" should still zoom the graph
+// to that neighbourhood, not just exact node ids.
+const GROUP_KEYWORDS: [RegExp, GraphGroup][] = [
+  [/\breconciliations?\b/i, "reconciliation"],
+  [/\bpayables?\b|\bAP\/AR\b/i, "payables"],
+  [/\breceivables?\b/i, "receivables"],
+  [/\bclose\b|\bclosing\b/i, "close"],
+  [/\bforecasts?\b/i, "forecast"],
+  [/\baudits?\b/i, "audit"],
+  [/\bagents?\b/i, "agent"],
+];
+
+// The four "Run agent" buttons, mapped to the agent node(s) they correspond
+// to in the graph — so clicking one always visibly does *something* on the
+// graph, even on this small demo dataset where a re-run often finds nothing
+// new (the underlying facts haven't changed since the last run).
+const AGENT_NODE_KEYWORDS: Record<string, string[]> = {
+  "Cash & Reconciliation": ["reconciliation agent"],
+  "AP/AR": ["ap agent", "ar agent"],
+  Deals: ["deals agent"],
+  "Audit & Controls": ["audit agent"],
+};
 
 // SVG labels are capped at 24 chars; the full label stays on the node for
 // the <title> tooltip, the detail panel and chat matching.
@@ -55,7 +84,13 @@ function DeepLink({ onNode }: { onNode: (id: string) => void }) {
 // stable for d3). `nodesSnapshot`/`linksSnapshot` below are the render-facing
 // copies, refreshed on a rAF-throttled cadence from the tick handler — this
 // is what JSX actually reads, so no ref is ever read during render.
-export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
+export function GraphCanvas({
+  reloadToken = 0,
+  runInfo = null,
+}: {
+  reloadToken?: number;
+  runInfo?: RunInfo | null;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<Simulation<SimNode, SimLink> | null>(null);
@@ -71,7 +106,6 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const draggingRef = useRef(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [hasInteracted, setHasInteracted] = useState(false);
   const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
   const zoomRef = useRef<ReturnType<typeof d3zoom<SVGSVGElement, unknown>> | null>(null);
   const transformRef = useRef<ZoomTransform>(zoomIdentity);
@@ -82,6 +116,29 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
   const [fresh, setFresh] = useState<{ nodes: Set<string>; links: Set<string>; touched: Set<string> }>(
     { nodes: new Set(), links: new Set(), touched: new Set() },
   );
+  // Bottom-right status line — confirms a run actually happened, even when
+  // it produced no new nodes (the data was already up to date).
+  const [notice, setNotice] = useState<{ text: string; tone: "gold" | "neutral" } | null>(null);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A whole category the chatbot just mentioned (no specific node) — dims
+  // everything else briefly so the relevant cluster stands out.
+  const [spotlightIds, setSpotlightIds] = useState<Set<string> | null>(null);
+  const spotlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showNotice(text: string, tone: "gold" | "neutral") {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    setNotice({ text, tone });
+    if (tone === "neutral") {
+      noticeTimerRef.current = setTimeout(() => setNotice(null), 5000);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+      if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
+    };
+  }, []);
 
   const scheduleRender = useCallback(() => {
     if (rafRef.current != null) return;
@@ -103,7 +160,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
     );
     sim.force(
       "collision",
-      forceCollide<SimNode>().radius((d) => nodeRadius(d, degrees.get(d.id) ?? 0) + 16),
+      forceCollide<SimNode>().radius((d) => nodeRadius(d, degrees.get(d.id) ?? 0) + 14),
     );
   }, []);
 
@@ -130,7 +187,46 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
           (e) => !existingLinks.has(linkKey(e.source, e.target)) && !existingLinks.has(linkKey(e.target, e.source)),
         );
         const newNodes = data.nodes.filter((n) => !existing.has(n.id));
-        if (newNodes.length === 0 && newLinks.length === 0) return;
+
+        const isRunTriggered = runInfo?.token === reloadToken;
+        const agentLabel = isRunTriggered ? runInfo!.agent : null;
+
+        if (newNodes.length === 0 && newLinks.length === 0) {
+          if (agentLabel) {
+            showNotice(`${agentLabel}: run complete — already up to date, no new findings`, "neutral");
+            // Nothing new to reveal, but the click should still visibly do
+            // something: jump to that agent and light up what it touches.
+            const keywords = AGENT_NODE_KEYWORDS[agentLabel];
+            const agentNodeIds = keywords
+              ? data.nodes.filter((n) => n.isAgent && keywords.some((kw) => n.label.toLowerCase().includes(kw))).map((n) => n.id)
+              : [];
+            const neighborIds = new Set(agentNodeIds);
+            for (const e of data.edges) {
+              if (agentNodeIds.includes(e.source)) neighborIds.add(e.target);
+              if (agentNodeIds.includes(e.target)) neighborIds.add(e.source);
+            }
+            if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
+            if (agentNodeIds.length && neighborIds.size > agentNodeIds.length) {
+              // The agent has something connected to it — zoom in and light
+              // up that neighbourhood.
+              const raf = requestAnimationFrame(() => {
+                setSpotlightIds(neighborIds);
+                zoomToNodes(agentNodeIds);
+              });
+              spotlightTimerRef.current = setTimeout(() => setSpotlightIds(null), 5000);
+              return () => cancelAnimationFrame(raf);
+            }
+            // No agent node found, or it has nothing connected to it (e.g.
+            // Deals/Audit with no current findings) — zoom back out to the
+            // whole map instead of leaving the view sitting on nothing.
+            const raf = requestAnimationFrame(() => {
+              setSpotlightIds(null);
+              zoomToNodes(data.nodes.map((n) => n.id));
+            });
+            return () => cancelAnimationFrame(raf);
+          }
+          return;
+        }
 
         const added: SimNode[] = newNodes.map((n) => {
           const anchorId = newLinks.find((e) => e.source === n.id || e.target === n.id);
@@ -142,12 +238,10 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
             y: (anchor?.y ?? 0) + (Math.random() - 0.5) * 40,
           };
         });
-        nodesRef.current = [...nodesRef.current, ...added];
-        const known = new Set(nodesRef.current.map((n) => n.id));
+        const potentialIds = new Set([...existing.keys(), ...added.map((n) => n.id)]);
         const addedLinks: SimLink[] = newLinks
-          .filter((e) => known.has(e.source) && known.has(e.target))
+          .filter((e) => potentialIds.has(e.source) && potentialIds.has(e.target))
           .map((e) => ({ source: e.source, target: e.target, rel: e.rel }));
-        linksRef.current = [...linksRef.current, ...addedLinks];
 
         const freshNodes = new Set(added.map((n) => n.id));
         const touched = new Set<string>();
@@ -160,20 +254,62 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
           links: new Set(newLinks.map((e) => linkKey(e.source, e.target))),
           touched,
         });
+        showNotice(
+          agentLabel
+            ? `${agentLabel}: ${added.length} new node${added.length === 1 ? "" : "s"}, ${addedLinks.length} new link${addedLinks.length === 1 ? "" : "s"}`
+            : `New since last run: ${added.length} nodes, ${addedLinks.length} links`,
+          "gold",
+        );
 
-        const sim = simulationRef.current;
-        if (sim) {
-          sim.nodes(nodesRef.current);
-          (sim.force("link") as ForceLink<SimNode, SimLink>).links(linksRef.current);
-          refreshForces();
-          if (reducedMotionRef.current) {
+        // Reveal new nodes one at a time (and their links as both ends
+        // become available) instead of dropping the whole batch in at once —
+        // reduced motion still gets the instant, fully-settled layout.
+        if (reducedMotionRef.current) {
+          nodesRef.current = [...nodesRef.current, ...added];
+          linksRef.current = [...linksRef.current, ...addedLinks];
+          const sim = simulationRef.current;
+          if (sim) {
+            sim.nodes(nodesRef.current);
+            (sim.force("link") as ForceLink<SimNode, SimLink>).links(linksRef.current);
+            refreshForces();
             sim.alpha(1).stop();
             for (let i = 0; i < 300; i += 1) sim.tick();
-          } else {
-            sim.alpha(0.5).restart();
           }
+          scheduleRender();
+          return;
         }
-        scheduleRender();
+
+        const knownIds = new Set(nodesRef.current.map((n) => n.id));
+        const interval = Math.max(60, Math.min(220, Math.round(4000 / added.length)));
+        let i = 0;
+        const revealNext = () => {
+          if (cancelled) return;
+          if (i >= added.length) return;
+          const node = added[i];
+          i += 1;
+          nodesRef.current = [...nodesRef.current, node];
+          knownIds.add(node.id);
+
+          const ready = addedLinks.filter(
+            (l) =>
+              !linksRef.current.includes(l) &&
+              knownIds.has(linkEndpointId(l.source)) &&
+              knownIds.has(linkEndpointId(l.target)),
+          );
+          if (ready.length) linksRef.current = [...linksRef.current, ...ready];
+
+          const sim = simulationRef.current;
+          if (sim) {
+            sim.nodes(nodesRef.current);
+            (sim.force("link") as ForceLink<SimNode, SimLink>).links(linksRef.current);
+            refreshForces();
+            sim.alpha(Math.max(sim.alpha(), 0.22)).restart();
+          }
+          scheduleRender();
+
+          if (i < added.length) setTimeout(revealNext, interval);
+        };
+        revealNext();
       })
       .catch((err: unknown) => {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load graph");
@@ -181,8 +317,13 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
     return () => {
       cancelled = true;
     };
+    // `runInfo` is listed alongside `reloadToken` on purpose: they're always
+    // set together (see GraphScreen's `bump`), and listing both makes that
+    // guarantee explicit rather than relying on a stale closure staying
+    // correct by convention — exactly one reload per click, using the
+    // agent name from *this* click, not a leftover one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadToken]);
+  }, [reloadToken, runInfo]);
 
   // ---- Setup: build simulation once the data is in --------------------
   useEffect(() => {
@@ -192,8 +333,19 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
 
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 560;
+    const cx = width / 2;
+    const cy = height / 2;
 
-    const nodes: SimNode[] = view.nodes.map((n) => ({ ...n }));
+    // Start compact — a small phyllotaxis disk around the centre, rather
+    // than d3's default spiral (which grows with node count) — so the
+    // layout doesn't visibly "explode" outward on first paint.
+    const startRadius = Math.min(width, height) * 0.2;
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const nodes: SimNode[] = view.nodes.map((n, i) => {
+      const r = startRadius * Math.sqrt((i + 0.5) / view.nodes.length);
+      const angle = i * goldenAngle;
+      return { ...n, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    });
     const links: SimLink[] = view.edges.map((e) => ({
       source: e.source,
       target: e.target,
@@ -207,11 +359,15 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
         "link",
         forceLink<SimNode, SimLink>(links)
           .id((d) => d.id)
-          .distance(70)
+          .distance(65)
           .strength(0.5),
       )
-      .force("charge", forceManyBody().strength(-190))
-      .force("center", forceCenter(width / 2, height / 2))
+      // distanceMax keeps two nodes that are already far apart from
+      // continuing to push each other away — that's what let the layout
+      // drift open over time even with a modest charge strength.
+      .force("charge", forceManyBody().strength(-95).distanceMax(280))
+      .force("center", forceCenter(cx, cy))
+      .alphaDecay(0.04)
       .on("tick", scheduleRender);
 
     simulationRef.current = simulation;
@@ -254,7 +410,6 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
       .on("zoom", (event) => {
         transformRef.current = event.transform;
         setTransform(event.transform);
-        setHasInteracted(true);
       });
     zoomRef.current = zoomBehavior;
     selection.call(zoomBehavior);
@@ -280,7 +435,6 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
           if (!event.active) simulationRef.current?.alphaTarget(0.15).restart();
           node.fx = node.x;
           node.fy = node.y;
-          setHasInteracted(true);
         })
         .on("drag", (event) => {
           const id = el.dataset.id!;
@@ -351,7 +505,6 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
 
   const handleNodeClick = useCallback(
     (node: SimNode) => {
-      setHasInteracted(true);
       setSelectedId(node.id);
       if (node.aggregate) expandNode(node.id);
     },
@@ -365,13 +518,11 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
       if (!view) return false;
       if (view.nodes.some((n) => n.id === id)) {
         setSelectedId(id);
-        setHasInteracted(true);
         return true;
       }
       for (const [parentId, expansion] of Object.entries(view.expansions)) {
         if (expansion.nodes.some((n) => n.id === id)) {
           setSelectedId(id);
-          setHasInteracted(true);
           expandNode(parentId);
           return true;
         }
@@ -487,11 +638,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
     if (!last || last.id === lastSeenMsgRef.current) return;
     lastSeenMsgRef.current = last.id;
 
-    let ids: string[] = [];
-    if (last.role === "agent") {
-      ids = (last.citations ?? []).map((c) => c.label);
-    } else {
-      const text = last.text;
+    function matchIdsInText(text: string): string[] {
       const scored: { id: string; at: number; exact: boolean }[] = [];
       for (const n of chatLookup) {
         const esc = n.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -517,16 +664,44 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
         }
       }
       scored.sort((a, b) => Number(b.exact) - Number(a.exact) || a.at - b.at);
-      ids = [...new Set(scored.map((s) => s.id))];
+      return [...new Set(scored.map((s) => s.id))];
     }
-    if (!ids.length) return;
+
+    const ids =
+      last.role === "agent"
+        ? [...new Set([...(last.citations ?? []).map((c) => c.label), ...matchIdsInText(last.text)])]
+        : matchIdsInText(last.text);
+
     const known = ids.filter((id) => view.nodes.some((n) => n.id === id)
       || Object.values(view.expansions).some((e) => e.nodes.some((n) => n.id === id)));
-    if (!known.length) return;
+
+    if (known.length) {
+      // Replacing the spotlight outright — safe to drop any pending clear.
+      if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
+      const raf = requestAnimationFrame(() => {
+        setSpotlightIds(null);
+        revealNode(known[0]);
+        zoomToNodes(known);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+
+    // No specific node — but a whole category ("reconciliation", "the
+    // agents", …) mentioned anywhere in the message still zooms & dims the
+    // rest, so a category-level answer still moves the graph. An unrelated
+    // message in between (e.g. the reply that follows) must NOT cancel an
+    // already-scheduled clear without rescheduling one, or the spotlight
+    // would stay stuck forever.
+    const matchedGroup = GROUP_KEYWORDS.find(([pattern]) => pattern.test(last.text))?.[1];
+    if (!matchedGroup) return;
+    const groupIds = view.nodes.filter((n) => n.group === matchedGroup).map((n) => n.id);
+    if (!groupIds.length) return;
+    if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
     const raf = requestAnimationFrame(() => {
-      revealNode(known[0]);
-      zoomToNodes(known);
+      setSpotlightIds(new Set(groupIds));
+      zoomToNodes(groupIds);
     });
+    spotlightTimerRef.current = setTimeout(() => setSpotlightIds(null), 5000);
     return () => cancelAnimationFrame(raf);
   }, [chatMessages, view, chatLookup, revealNode]);
 
@@ -579,6 +754,9 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
     return set;
   }, [focusId, linksSnapshot]);
 
+  // A category the chatbot just mentioned — hover/select always wins over it.
+  const spotlightActive = !focusId && !!spotlightIds && spotlightIds.size > 0;
+
   const selectedNode = selectedId ? (nodesSnapshot.find((n) => n.id === selectedId) ?? null) : null;
   const selectedConnections = useMemo(() => {
     if (!selectedNode) return [];
@@ -630,7 +808,8 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                 const sId = linkEndpointId(l.source);
                 const tId = linkEndpointId(l.target);
                 const connected = focusId != null && (sId === focusId || tId === focusId);
-                const dimmed = focusId != null && !connected;
+                const spotlightConnected = spotlightActive && (spotlightIds!.has(sId) || spotlightIds!.has(tId));
+                const dimmed = focusId != null ? !connected : spotlightActive ? !spotlightConnected : false;
                 const isFresh = fresh.links.has(`${sId}->${tId}`) || fresh.links.has(`${tId}->${sId}`);
                 return (
                   <line
@@ -651,7 +830,10 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                 if (node.x == null || node.y == null) return null;
                 const degree = degrees.get(node.id) ?? 0;
                 const radius = nodeRadius(node, degree);
-                const dimmed = !!focusId && !focusNeighbors?.has(node.id) && !node.isAgent;
+                const isSpotlighted = spotlightActive && spotlightIds!.has(node.id);
+                const dimmed = focusId
+                  ? !focusNeighbors?.has(node.id) && !node.isAgent
+                  : spotlightActive && !isSpotlighted;
                 const isFocused = focusId === node.id;
                 const isNeighbor = !!focusId && focusNeighbors?.has(node.id) && !isFocused;
                 const isFresh = fresh.nodes.has(node.id);
@@ -690,13 +872,18 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                     }}
                     className="graph-node cursor-pointer select-none outline-none"
                     data-focus={
-                      isFocused ? "focused" : isNeighbor ? "neighbor" : dimmed ? "dim" : undefined
+                      isFocused ? "focused" : isNeighbor ? "neighbor" : isSpotlighted ? "spotlight" : dimmed ? "dim" : undefined
                     }
                     data-touched={isTouched || undefined}
                   >
                     <title>{node.label}</title>
                     {isFresh && (
                       <circle r={radius + 6} fill="var(--gold)" opacity={0.25}>
+                        <animate attributeName="r" values={`${radius + 4};${radius + 9};${radius + 4}`} dur="1.6s" repeatCount="indefinite" />
+                      </circle>
+                    )}
+                    {isSpotlighted && !isFresh && (
+                      <circle r={radius + 6} fill="var(--blue)" opacity={0.25}>
                         <animate attributeName="r" values={`${radius + 4};${radius + 9};${radius + 4}`} dur="1.6s" repeatCount="indefinite" />
                       </circle>
                     )}
@@ -733,17 +920,22 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
             Loading memory graph…
           </div>
         )}
-        {view && !hasInteracted && <GraphHint />}
         <GraphLegend />
-        {fresh.nodes.size + fresh.links.size > 0 && (
-          <div className="absolute right-3 bottom-3 flex items-center gap-2 border border-gold/40 bg-paper-raised/95 px-2.5 py-1.5 text-xs backdrop-blur-sm">
-            <span className="h-2 w-2 rounded-full bg-gold" aria-hidden />
-            <span className="text-ink">
-              New since last run: {fresh.nodes.size} nodes, {fresh.links.size} links
-            </span>
+        {notice && (
+          <div
+            className={cn(
+              "absolute right-3 bottom-3 flex items-center gap-2 border bg-paper-raised/95 px-2.5 py-1.5 text-xs backdrop-blur-sm",
+              notice.tone === "gold" ? "border-gold/40" : "border-rule",
+            )}
+          >
+            {notice.tone === "gold" && <span className="h-2 w-2 rounded-full bg-gold" aria-hidden />}
+            <span className="text-ink">{notice.text}</span>
             <button
               type="button"
-              onClick={() => setFresh({ nodes: new Set(), links: new Set(), touched: new Set() })}
+              onClick={() => {
+                setNotice(null);
+                setFresh({ nodes: new Set(), links: new Set(), touched: new Set() });
+              }}
               className="text-ink-soft hover:text-ink"
             >
               clear

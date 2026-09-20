@@ -2,9 +2,20 @@ import { cn } from "@/lib/utils";
 import { RollingFigure } from "@/components/shared/rolling-figure";
 import type { KpiCellData } from "@/lib/types";
 
+const SM_COLS: Record<number, string> = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-4",
+};
+
 export function KpiRow({ cells }: { cells: KpiCellData[] }) {
   return (
-    <div className="stagger-fast grid grid-cols-2 border border-rule bg-paper-raised sm:grid-cols-4">
+    <div
+      className={cn(
+        "stagger-fast grid grid-cols-2 border border-rule bg-paper-raised",
+        SM_COLS[cells.length] ?? "sm:grid-cols-4",
+      )}
+    >
       {cells.map((cell, i) => (
         <div
           key={cell.label}

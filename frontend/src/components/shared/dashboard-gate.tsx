@@ -14,12 +14,14 @@ interface NeedsRun {
  * "Run agents" call-to-action when the backend reports needs_run. */
 export function DashboardGate<T extends NeedsRun>({
   loading,
+  refreshing = false,
   error,
   data,
   onRan,
   children,
 }: {
   loading: boolean;
+  refreshing?: boolean;
   error: string | null;
   data: T | null;
   onRan: () => void;
@@ -66,7 +68,12 @@ export function DashboardGate<T extends NeedsRun>({
   }
   if (!data) return null;
   return (
-    <div>
+    <div className="relative">
+      {refreshing && (
+        <div className="absolute -top-2 right-0 left-0 h-[2px] overflow-hidden bg-transparent" aria-hidden>
+          <div className="h-full w-1/3 animate-refresh-sweep bg-green" />
+        </div>
+      )}
       {data.needs_run && status?.state === "running" && (
         <div className="mb-3 flex items-center gap-2 border border-rule bg-paper-raised px-3 py-2">
           <Loader2 size={12} className="animate-spin text-ink-soft" aria-hidden />
@@ -87,7 +94,7 @@ export function DashboardGate<T extends NeedsRun>({
             type="button"
             disabled={running}
             onClick={() => handleRun(data.run_request ?? "Close the books for Q1")}
-            className="inline-flex items-center gap-1.5 rounded-chip border border-ink bg-ink px-2.5 py-1 text-xs text-paper hover:bg-ink/85 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-chip border border-green bg-green px-2.5 py-1 text-xs text-paper hover:bg-green/85 disabled:opacity-50"
           >
             {running ? (
               <Loader2 size={12} className="animate-spin" aria-hidden />

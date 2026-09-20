@@ -233,6 +233,7 @@ const AGENT_ROUTES: Record<string, string> = {
   "Cash & Reconciliation": "/api/agents/recon/run",
   "AP/AR": "/api/agents/apar/run",
   Deals: "/api/agents/deals/run",
+  "Audit & Controls": "/api/agents/audit/run",
 };
 
 export function listAgents(): Promise<AgentSpec[]> {

@@ -1,10 +1,10 @@
-from app.agents.recon.agent import CashReconAgent
+from app.agents.recon.agent import ReconAgent
 from app.agents.registry import default_registry
 
 
 def test_default_registry() -> None:
     reg = default_registry()
-    assert reg.names() == ["Cash & Reconciliation", "AP/AR", "Deals"]
+    assert reg.names() == ["Cash & Reconciliation", "AP/AR", "Deals", "Audit & Controls"]
     spec = reg.specs()[0]
     assert spec.name == "Cash & Reconciliation"
     assert "start" in spec.params and "end" in spec.params
@@ -15,5 +15,5 @@ def test_default_registry() -> None:
 def test_get_returns_fresh_instance() -> None:
     reg = default_registry()
     a, b = reg.get("Cash & Reconciliation"), reg.get("Cash & Reconciliation")
-    assert isinstance(a, CashReconAgent)
+    assert isinstance(a, ReconAgent)
     assert a is not b

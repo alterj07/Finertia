@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { ApiError, deleteChatSession, sendChat } from "@/lib/api";
 import { COPILOT_SCRIPTS } from "@/lib/config/copilot";
+import { useHighlightStore } from "@/store/highlight-store";
 import type { CopilotMessage, ModuleKey } from "@/lib/types";
 
 interface CopilotState {
@@ -101,6 +102,7 @@ export const useCopilotStore = create<CopilotState>()(
             sessionId: resp.session_id,
             messages: [...s.messages, reply],
           }));
+          useHighlightStore.getState().pulse(resp.citations);
         } catch (e) {
           const detail =
             e instanceof ApiError
@@ -143,13 +145,22 @@ export const useCopilotStore = create<CopilotState>()(
     }),
     {
       name: "finertia-copilot",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         messages: s.messages,
         sessionId: s.sessionId,
         opened: s.opened,
       }),
+      // v1 seeded a longer opening line that's since changed; drop any
+      // persisted thread that still starts with it so it regenerates fresh.
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<CopilotState>;
+        if (version < 2 && state.messages?.[0]?.role === "agent") {
+          return { ...state, messages: [], opened: false } as CopilotState;
+        }
+        return state as CopilotState;
+      },
       skipHydration: true,
     },
   ),

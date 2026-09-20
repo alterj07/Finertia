@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ import { RollingFigure } from "@/components/shared/rolling-figure";
 import type { LedgerRowData, RowAction } from "@/lib/types";
 import { StatusTag } from "@/components/shared/status-tag";
 import { Waterfall } from "@/components/shared/waterfall";
+import { useHighlightStore } from "@/store/highlight-store";
 
 function ActionButton({ action }: { action: RowAction }) {
   const className = cn(
@@ -30,12 +31,29 @@ function ActionButton({ action }: { action: RowAction }) {
   );
 }
 
-function LedgerRow({ row }: { row: LedgerRowData }) {
+function LedgerRow({ row, flash }: { row: LedgerRowData; flash: boolean }) {
   const [open, setOpen] = useState(false);
   const hasDetail = !!row.detail;
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // The chatbot just cited this row: pull it into view and, since we're
+  // already looking at it, open the detail it was cited for.
+  useEffect(() => {
+    if (!flash) return;
+    const raf = requestAnimationFrame(() => {
+      rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (hasDetail) setOpen(true);
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flash]);
 
   return (
-    <div className="border-b border-rule-soft last:border-b-0">
+    <div
+      ref={rowRef}
+      data-row-id={row.id}
+      className={cn("border-b border-rule-soft last:border-b-0", flash && "animate-row-flash")}
+    >
       <button
         type="button"
         onClick={() => hasDetail && setOpen((v) => !v)}
@@ -108,6 +126,26 @@ export function Ledger({
   rows: LedgerRowData[];
   emptyState?: string;
 }) {
+  const highlightIds = useHighlightStore((s) => s.ids);
+  const highlightToken = useHighlightStore((s) => s.token);
+  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (highlightToken === 0) return;
+    let clearTimer: ReturnType<typeof setTimeout> | undefined;
+    const raf = requestAnimationFrame(() => {
+      const matches = rows.filter((r) => highlightIds.has(r.id)).map((r) => r.id);
+      if (matches.length === 0) return;
+      setFlashIds(new Set(matches));
+      clearTimer = setTimeout(() => setFlashIds(new Set()), 2200);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      if (clearTimer) clearTimeout(clearTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightToken]);
+
   if (rows.length === 0) {
     return (
       <div className="border-t-[1.5px] border-ink py-6">
@@ -119,7 +157,7 @@ export function Ledger({
   return (
     <div className="stagger-fast border-t-[1.5px] border-ink">
       {rows.map((row) => (
-        <LedgerRow key={row.id} row={row} />
+        <LedgerRow key={row.id} row={row} flash={flashIds.has(row.id)} />
       ))}
     </div>
   );

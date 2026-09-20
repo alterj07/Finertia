@@ -6,12 +6,7 @@ export type ActionTag = "auto" | "review" | "flag";
 
 export type ModuleKey =
   | "command-center"
-  | "payables"
-  | "receivables"
-  | "reconciliation"
-  | "close"
-  | "forecast"
-  | "audit"
+  | "financial-operations"
   | "graph"
   | "flight-simulator";
 

@@ -1,26 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { SectionBlock } from "@/components/shared/section-block";
+import { useRef, useState } from "react";
 import { AgentRunner } from "@/components/graph/agent-runner";
 import { DataUpload } from "@/components/graph/data-upload";
-import { GraphCanvas } from "@/components/graph/graph-canvas";
+import { GraphCanvas, type RunInfo } from "@/components/graph/graph-canvas";
 
 export function GraphScreen() {
   const [reloadToken, setReloadToken] = useState(0);
+  const [runInfo, setRunInfo] = useState<RunInfo | null>(null);
+  const tokenRef = useRef(0);
+
+  function bump(agent: string | null) {
+    tokenRef.current += 1;
+    setReloadToken(tokenRef.current);
+    setRunInfo(agent ? { agent, token: tokenRef.current } : null);
+  }
+
   return (
     <div className="stagger">
-      <SectionBlock title="Data graph">
-        <p className="mb-4 max-w-[70ch] text-sm leading-relaxed text-ink-soft">
-          The shared memory graph, live from the backend: one node per vendor, customer, bank
-          feed, journal batch, and learned pattern, plus every finding the agents have written.
-          Click a node to expand it into the invoices, journal entries, bank lines, emails and
-          scans underneath.
-        </p>
-        <DataUpload onUploaded={() => setReloadToken((t) => t + 1)} />
-        <AgentRunner onRan={() => setReloadToken((t) => t + 1)} />
-        <GraphCanvas reloadToken={reloadToken} />
-      </SectionBlock>
+      <div className="mb-3 grid items-stretch gap-3 lg:grid-cols-[1fr_2fr]">
+        <DataUpload onUploaded={() => bump(null)} />
+        <AgentRunner onRan={(agent) => bump(agent)} />
+      </div>
+      <GraphCanvas reloadToken={reloadToken} runInfo={runInfo} />
     </div>
   );
 }

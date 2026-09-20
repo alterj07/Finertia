@@ -7,7 +7,7 @@ import pytest
 
 from app.agents.base import AgentContext
 from app.agents.feedback import FeedbackStore
-from app.agents.recon.agent import CashReconAgent
+from app.agents.recon.agent import ReconAgent
 from app.data.lake import DataLake
 from app.memory.graph import MemoryGraph
 from app.memory.models import Finding
@@ -94,7 +94,7 @@ def test_context_and_search(graph: MemoryGraph) -> None:
 def test_recon_findings_attach_to_seeded_nodes(lake: DataLake, tmp_path: Path) -> None:
     g = MemoryGraph(tmp_path / "g.json").seed(lake)
     ctx = AgentContext(lake=lake, memory=g, feedback=FeedbackStore(tmp_path / "fb.json"))
-    CashReconAgent().run(ctx, start="2026-01-01", end="2026-03-31")
+    ReconAgent().run(ctx, start="2026-01-01", end="2026-03-31")
     fx = "finding:FX_DIFFERENCE:BP-4471"
     targets = {e.dst for e in g.out_edges(fx)}
     assert "BP-4471" in targets and g.nodes["BP-4471"].type == "invoice"

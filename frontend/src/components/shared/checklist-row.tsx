@@ -14,20 +14,19 @@ const STATUS_CONFIG: Record<
 export function ChecklistRow({ item }: { item: ChecklistItemData }) {
   const status = STATUS_CONFIG[item.status];
   return (
-    <div className="flex items-center gap-3 border-b border-rule-soft py-2.5 last:border-b-0">
+    <div className="flex items-center gap-2 border-b border-rule-soft py-2 last:border-b-0">
       <span
         role="img"
         aria-label={status.label}
         title={status.label}
         className={cn(
-          "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[9px] leading-none",
+          "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border text-[8px] leading-none",
           status.className,
         )}
       >
         {status.glyph}
       </span>
-      <span className="flex-1 text-sm text-ink">{item.label}</span>
-      <span className="font-mono text-xs text-ink-soft">{item.owner}</span>
+      <span className="flex-1 text-xs leading-snug text-ink">{item.label}</span>
     </div>
   );
 }

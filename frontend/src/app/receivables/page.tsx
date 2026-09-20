@@ -1,5 +1,6 @@
-import { ReceivablesScreen } from "@/components/screens/receivables";
+import { redirect } from "next/navigation";
 
+// Receivables was folded into Financial Operations' AP/AR tab.
 export default function Receivables() {
-  return <ReceivablesScreen />;
+  redirect("/financial-operations?tab=ap-ar");
 }
