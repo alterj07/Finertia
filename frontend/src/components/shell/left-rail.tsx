@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS } from "@/lib/mock/nav";
-import { AUTONOMY_WORKFLOWS } from "@/lib/mock/autonomy";
+import { NAV_ITEMS } from "@/lib/config/nav";
+import { AUTONOMY_WORKFLOWS } from "@/lib/config/autonomy";
 import { useAppStore } from "@/store/app-store";
 import { pathToModule } from "@/lib/route";
 

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { COPILOT_SCRIPTS } from "@/lib/mock/copilot";
+import { COPILOT_SCRIPTS } from "@/lib/config/copilot";
 import { useAppStore } from "@/store/app-store";
 import { useCopilotStore } from "@/store/copilot-store";
 import type { CopilotMessage } from "@/lib/types";

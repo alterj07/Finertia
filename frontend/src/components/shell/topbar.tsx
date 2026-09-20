@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, MessageSquare, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MODULE_TITLES } from "@/lib/mock/nav";
+import { MODULE_TITLES } from "@/lib/config/nav";
 import { pathToModule } from "@/lib/route";
 import { ENTITIES, PERIODS, useAppStore } from "@/store/app-store";
 
-const TODAY = "Sat, Sep 19, 2026";
+const AS_OF = "As of 2026-03-31";
 
 function useOutsideClick(onOutside: () => void) {
   const ref = useRef<HTMLDivElement>(null);
@@ -109,7 +109,7 @@ export function Topbar() {
         </button>
         <div className="flex min-w-0 items-baseline gap-2.5">
           <h1 className="truncate font-serif text-xl text-ink">{MODULE_TITLES[moduleKey]}</h1>
-          <span className="hidden shrink-0 text-sm text-ink-soft sm:inline">{TODAY}</span>
+          <span className="hidden shrink-0 text-sm text-ink-soft sm:inline">{AS_OF}</span>
         </div>
       </div>
 

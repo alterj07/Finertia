@@ -1,6 +1,6 @@
 // Shared domain types for the Finertia frontend.
-// All data implementing these types is mocked/seeded — see src/lib/mock/*.
-// The shape here is what a real backend/connector would need to satisfy.
+// These shapes are satisfied by the backend /api/dashboard/* endpoints;
+// static config (nav, copilot prompts, autonomy levels) lives in src/lib/config/*.
 
 export type AutonomyLevel = "auto" | "assisted" | "manual";
 

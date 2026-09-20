@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { ApiError, sendChat } from "@/lib/api";
-import { COPILOT_SCRIPTS } from "@/lib/mock/copilot";
+import { COPILOT_SCRIPTS } from "@/lib/config/copilot";
 import type { CopilotMessage, ModuleKey } from "@/lib/types";
 
 interface CopilotState {

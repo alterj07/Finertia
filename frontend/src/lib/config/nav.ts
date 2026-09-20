@@ -10,10 +10,10 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { key: "command-center", label: "Command Center", href: "/" },
-  { key: "payables", label: "Payables", href: "/payables", count: 7, needsAttention: true },
-  { key: "receivables", label: "Receivables", href: "/receivables", count: 4, needsAttention: true },
-  { key: "reconciliation", label: "Reconciliation", href: "/reconciliation", count: 2 },
-  { key: "close", label: "Close", href: "/close", count: 5, needsAttention: true },
+  { key: "payables", label: "Payables", href: "/payables" },
+  { key: "receivables", label: "Receivables", href: "/receivables" },
+  { key: "reconciliation", label: "Reconciliation", href: "/reconciliation" },
+  { key: "close", label: "Close", href: "/close" },
   { key: "forecast", label: "Forecast", href: "/forecast" },
   { key: "audit", label: "Audit & Controls", href: "/audit" },
   { key: "graph", label: "Data Graph", href: "/graph" },

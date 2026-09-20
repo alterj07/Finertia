@@ -148,6 +148,33 @@ export function fetchMemoryContext(id: string, depth = 1): Promise<MemoryContext
   );
 }
 
+// ---- dashboards ----
+
+export function getDashboard<T>(screen: string): Promise<T> {
+  return apiFetch<T>(`/api/dashboard/${screen}`);
+}
+
+export function getPayableInvoice(key: string): Promise<PayableInvoiceDetail> {
+  return apiFetch<PayableInvoiceDetail>(
+    `/api/dashboard/payables/invoices/${encodeURIComponent(key)}`,
+  );
+}
+
+export interface PayableInvoiceDetail {
+  row: import("@/lib/types").LedgerRowData;
+  finding: Record<string, unknown>;
+}
+
+export function runOrchestrator(
+  request: string,
+): Promise<{ results: AgentRunResult[] }> {
+  return apiFetch("/api/orchestrator/run", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request }),
+  });
+}
+
 // ---- agents ----
 
 export interface AgentSpec {

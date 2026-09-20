@@ -1,11 +1,11 @@
 "use client";
 
 import { create } from "zustand";
-import { AUTONOMY_WORKFLOWS } from "@/lib/mock/autonomy";
+import { AUTONOMY_WORKFLOWS } from "@/lib/config/autonomy";
 import type { AutonomyLevel, AutonomyWorkflow } from "@/lib/types";
 
-export const ENTITIES = ["Acme Holdings, Consolidated", "Acme Holdings, US", "Acme Holdings, EU"];
-export const PERIODS = ["FY26 · Sep", "FY26 · Aug", "FY26 · Jul", "FY26 · Q3"];
+export const ENTITIES = ["Lumen Robotics"];
+export const PERIODS = ["FY26 · Q1"];
 
 interface AppState {
   isDark: boolean;
