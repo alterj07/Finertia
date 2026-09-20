@@ -31,6 +31,10 @@ import { GraphHint } from "@/components/graph/graph-hint";
 import { GraphLegend } from "@/components/graph/graph-legend";
 import { GraphDetailPanel } from "@/components/graph/graph-detail-panel";
 
+/** Hover/selection highlight: connections light up and the rest dims. */
+const FOCUS_TRANSITION =
+  "opacity 260ms cubic-bezier(0.32, 0.72, 0, 1), stroke 260ms ease, stroke-width 260ms ease, transform 260ms cubic-bezier(0.32, 0.72, 0, 1)";
+
 type FilterId = "all" | "agents" | (typeof MODULE_GROUPS)[number];
 
 function DeepLink({ onNode }: { onNode: (id: string) => void }) {
@@ -473,9 +477,12 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                     y1={s.y}
                     x2={t.x}
                     y2={t.y}
-                    stroke={isFresh ? "var(--gold)" : connected ? "var(--green)" : "var(--rule)"}
-                    strokeWidth={isFresh ? 2 : connected ? 1.25 : 1}
-                    opacity={dimmed ? 0.12 : 1}
+                    style={{
+                      stroke: isFresh ? "var(--gold)" : connected ? "var(--green)" : "var(--rule)",
+                      strokeWidth: isFresh ? 2 : connected ? 1.75 : 1,
+                      opacity: dimmed ? 0.08 : 1,
+                      transition: FOCUS_TRANSITION,
+                    }}
                   />
                 );
               })}
@@ -515,7 +522,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                       }
                     }}
                     className="cursor-pointer outline-none"
-                    style={{ opacity: dimmed ? 0.12 : 1 }}
+                    style={{ opacity: dimmed ? 0.12 : 1, transition: FOCUS_TRANSITION }}
                   >
                     {isFresh && (
                       <circle r={radius + 6} fill="var(--gold)" opacity={0.25}>
@@ -525,10 +532,14 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                     <circle
                       r={radius}
                       fill={isFresh ? "var(--gold)" : GROUP_COLOR[node.group]}
-                      stroke={
-                        isFocused || isNeighbor ? "var(--green)" : isTouched ? "var(--gold)" : "none"
-                      }
-                      strokeWidth={isFocused ? 2.5 : isNeighbor ? 1.5 : isTouched ? 2 : 0}
+                      style={{
+                        stroke: isFocused || isNeighbor ? "var(--green)" : isTouched ? "var(--gold)" : "transparent",
+                        strokeWidth: isFocused ? 2.5 : isNeighbor ? 1.5 : isTouched ? 2 : 0,
+                        transform: isFocused ? "scale(1.18)" : isNeighbor ? "scale(1.06)" : "scale(1)",
+                        transformBox: "fill-box",
+                        transformOrigin: "center",
+                        transition: FOCUS_TRANSITION,
+                      }}
                     />
                     <text
                       y={radius + 11}
