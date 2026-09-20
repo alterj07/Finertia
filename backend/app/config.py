@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     chat_sessions_path: Path = Path("./var/chat_sessions.json")
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4o-mini"
-    storage_backend: Literal["local", "elastic"] = "local"
+    storage_backend: Literal["local", "elastic"] = "elastic"
     es_url: str = "http://localhost:9200"
     es_api_key: SecretStr | None = None
     es_index_prefix: str = ""

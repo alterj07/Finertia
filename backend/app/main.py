@@ -71,7 +71,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             else None
         )
     app.state.es_store = store
-    app.state.memory = MemoryGraph(settings.memory_graph_path)
+    app.state.memory = MemoryGraph(
+        None if backend == "elastic" else settings.memory_graph_path
+    )
     if app.state.lake is not None:
         app.state.memory.seed(app.state.lake)
     if backend == "elastic":
@@ -79,6 +81,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.storage = {
         "backend": backend,
         "es_url": settings.es_url if backend == "elastic" else None,
+        "memory": "elasticsearch" if backend == "elastic" else "json",
     }
     app.state.feedback = FeedbackStore(settings.feedback_path)
     app.state.llm = build_llm(settings)

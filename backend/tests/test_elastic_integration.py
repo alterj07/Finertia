@@ -157,3 +157,34 @@ def test_attach_sync_backfills_findings(store, es_lake, tmp_path) -> None:
         store.count("memory-graph")
         == len([e for e in memory.edges if e.finding_node])
     )
+
+
+def test_es_is_the_store(store, es_lake, tmp_path) -> None:
+    """A finding written by one graph instance is visible to a fresh graph
+    that attaches to the same ES — no JSON file involved."""
+    for idx in ("agent-memory", "memory-graph", "memory-nodes"):
+        store.create_index(idx, MAPPINGS[idx], recreate=True)
+    sync = ElasticMemorySync(store)
+
+    writer = MemoryGraph(None)  # no JSON path at all
+    writer.seed(es_lake)
+    writer.attach_sync(sync)
+    writer.remember(
+        Finding(
+            agent="Cash & Reconciliation",
+            code="PERSISTED",
+            key="BK00003",
+            title="survives across instances",
+            entities=["BK00003"],
+        )
+    )
+
+    reader = MemoryGraph(None)
+    reader.seed(es_lake)
+    reader.attach_sync(ElasticMemorySync(store))
+    found = reader.recall(code="PERSISTED")
+    assert len(found) == 1
+    assert found[0].title == "survives across instances"
+    assert reader.edge("finding:PERSISTED:BK00003", "INVOLVES", "BK00003")
+    assert reader.path is None
+    assert not (tmp_path / "memory_graph.json").exists()

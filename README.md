@@ -35,7 +35,7 @@ Backend env vars (see `backend/.env`):
 | `CHAT_SESSIONS_PATH` | `./var/chat_sessions.json` | Chatbot session store JSON file |
 | `OPENAI_API_KEY` | — | Enables LLM orchestrator planning (fallback planner if unset) |
 | `OPENAI_MODEL` | `gpt-4o-mini` | Model used by the orchestrator planner |
-| `STORAGE_BACKEND` | `local` | `elastic` reads/writes the lake + memory through Elasticsearch |
+| `STORAGE_BACKEND` | `elastic` | `elastic` reads/writes the lake + memory through Elasticsearch; falls back to `local` when ES is unreachable |
 | `ES_URL` | `http://localhost:9200` | Elasticsearch endpoint |
 | `ES_API_KEY` | — | Optional API key for a secured cluster |
 | `ES_INDEX_PREFIX` | — | Prefix prepended to every index name (tests use `test-`) |
@@ -161,9 +161,12 @@ Indices (`ES_INDEX_PREFIX` prepends to each name):
 | `memory-graph` | edges written by `remember` (finding-layer edges) |
 | `memory-nodes` | every graph node + flattened text, powering ES-backed `search()` |
 
-The JSON file under `var/` remains the source of truth for the graph; ES is a
-replica for search and sharing. `graph.search()` queries `memory-nodes` and
-falls back to the local BM25 on any ES error.
+In elastic mode ES is the memory store: `MemoryGraph` runs with no JSON path,
+`attach_sync` loads the persisted findings/edges/nodes from `agent-memory` /
+`memory-graph` / `memory-nodes` at startup (backfilling anything ES missed),
+and `graph.search()` queries `memory-nodes` with a local-BM25 fallback. In
+local mode everything behaves as before — `var/memory_graph.json` is the
+store.
 
 ## Deploy
 

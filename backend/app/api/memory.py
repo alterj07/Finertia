@@ -101,4 +101,6 @@ def post_finding(body: FindingIn, request: Request) -> dict:
 @router.post("/reset")
 def reset(request: Request) -> dict:
     request.app.state.memory.reset()
+    if request.app.state.lake is not None:
+        request.app.state.memory.seed(request.app.state.lake)
     return {"status": "ok"}

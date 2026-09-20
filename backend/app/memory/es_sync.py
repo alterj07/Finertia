@@ -12,6 +12,10 @@ from typing import Any, Iterable
 from app.data.es_store import MAPPINGS, ElasticStore
 from app.memory.models import Edge, Finding, Node
 
+
+def _clean(doc: dict) -> dict:
+    return {k: v for k, v in doc.items() if not k.startswith("_")}
+
 log = logging.getLogger(__name__)
 
 _TOKEN = re.compile(r"[a-z0-9]+(?:[.\-][a-z0-9]+)*")
@@ -46,7 +50,10 @@ class ElasticMemorySync:
 
     def ensure_indices(self) -> None:
         for index in _MEM_INDICES:
-            self.store.create_index(index, MAPPINGS[index])
+            # recreate when missing or carrying a foreign/legacy mapping
+            self.store.create_index(
+                index, MAPPINGS[index], recreate=not self.store.schema_ok(index)
+            )
 
     def on_reset(self) -> None:
         for index in _MEM_INDICES:
@@ -80,6 +87,29 @@ class ElasticMemorySync:
             ],
             id_field="id",
         )
+
+    def load(self) -> tuple[list[Node], list[Edge], list[Finding]]:
+        """Read the whole memory layer back out of ES (nodes, edges, findings),
+        deterministically sorted."""
+        nodes = [
+            Node(id=d["id"], type=d["type"], props=d.get("props", {}))
+            for d in self.store.search("memory-nodes")
+        ]
+        nodes.sort(key=lambda n: n.id)
+        edges = []
+        seen: set[tuple] = set()
+        for d in self.store.search("memory-graph"):
+            e = Edge(**_clean(d))
+            key = (e.src, e.rel, e.dst, e.finding_node)
+            if key not in seen:
+                seen.add(key)
+                edges.append(e)
+        edges.sort(key=lambda e: (e.finding_node or "", e.src, e.rel, e.dst))
+        findings = [
+            Finding(**_clean(d)) for d in self.store.search("agent-memory")
+        ]
+        findings.sort(key=lambda f: (f.created_at, f.code, f.key))
+        return nodes, edges, findings
 
     def search(
         self, query: str, types: list[str] | None = None, k: int = 10
