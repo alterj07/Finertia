@@ -15,6 +15,7 @@ import { drag as d3drag } from "d3-drag";
 import { select as d3select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity, type ZoomTransform } from "d3-zoom";
 import { fetchGraphView } from "@/lib/api";
+import { useCopilotStore } from "@/store/copilot-store";
 import type { GraphView } from "@/lib/types";
 import {
   GROUP_COLOR,
@@ -66,6 +67,8 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
+  const zoomRef = useRef<ReturnType<typeof d3zoom<SVGSVGElement, unknown>> | null>(null);
+  const transformRef = useRef<ZoomTransform>(zoomIdentity);
   const [view, setView] = useState<GraphView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const expansionsRef = useRef<GraphView["expansions"]>({});
@@ -242,9 +245,11 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
         return !target.closest("[data-graph-node]");
       })
       .on("zoom", (event) => {
+        transformRef.current = event.transform;
         setTransform(event.transform);
         setHasInteracted(true);
       });
+    zoomRef.current = zoomBehavior;
     selection.call(zoomBehavior);
     return () => {
       selection.on(".zoom", null);
@@ -346,31 +351,174 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
     [expandNode],
   );
 
-  // Deep-link (?node=<id>): select a cited node; if it lives inside an
-  // aggregate's expansion, expand the parent first so it becomes visible.
+  // Reveal a node: select it; if it lives inside an aggregate's expansion,
+  // expand the parent first so it becomes visible. Returns whether id is known.
+  const revealNode = useCallback(
+    (id: string): boolean => {
+      if (!view) return false;
+      if (view.nodes.some((n) => n.id === id)) {
+        setSelectedId(id);
+        setHasInteracted(true);
+        return true;
+      }
+      for (const [parentId, expansion] of Object.entries(view.expansions)) {
+        if (expansion.nodes.some((n) => n.id === id)) {
+          setSelectedId(id);
+          setHasInteracted(true);
+          expandNode(parentId);
+          return true;
+        }
+      }
+      return false;
+    },
+    [view, expandNode],
+  );
+
+  // Deep-link (?node=<id>): reveal once per id, then zoom so the node and its
+  // connections fill the viewport.
   const deepLinkedRef = useRef<string | null>(null);
   const handleDeepLink = useCallback(
     (id: string) => {
       if (deepLinkedRef.current === id) return;
-      if (!view) return;
-      if (view.nodes.some((n) => n.id === id)) {
+      if (revealNode(id)) {
         deepLinkedRef.current = id;
-        setSelectedId(id);
-        setHasInteracted(true);
-        return;
-      }
-      for (const [parentId, expansion] of Object.entries(view.expansions)) {
-        if (expansion.nodes.some((n) => n.id === id)) {
-          deepLinkedRef.current = id;
-          setSelectedId(id);
-          setHasInteracted(true);
-          expandNode(parentId);
-          return;
-        }
+        zoomToNodes([id]);
       }
     },
-    [view, expandNode],
+    [revealNode],
   );
+
+  // Smoothly zoom/pan so ids[0] plus its neighbours fill the viewport. Targets
+  // may appear a few sim ticks after expansion, so positions are polled.
+  const zoomAnimRef = useRef(0);
+  function zoomToNodes(ids: string[]) {
+    const zoomBehavior = zoomRef.current;
+    const svgEl = svgRef.current;
+    const container = containerRef.current;
+    if (!zoomBehavior || !svgEl || !container) return;
+
+    const targets = new Set(ids);
+    for (const l of linksRef.current) {
+      const s = linkEndpointId(l.source);
+      const t = linkEndpointId(l.target);
+      if (s === ids[0]) targets.add(t);
+      if (t === ids[0]) targets.add(s);
+    }
+
+    const start = performance.now();
+    const poll = () => {
+      const pts = [...targets]
+        .map((id) => nodesRef.current.find((n) => n.id === id))
+        .filter(
+          (n): n is SimNode =>
+            !!n && Number.isFinite(n.x) && Number.isFinite(n.y),
+        );
+      const knownCount = [...targets].filter((id) =>
+        nodesRef.current.some((n) => n.id === id),
+      ).length;
+      if (pts.length < knownCount && performance.now() - start < 1500) {
+        requestAnimationFrame(poll);
+        return;
+      }
+      if (!pts.length) return;
+      const xs = pts.map((n) => n.x!);
+      const ys = pts.map((n) => n.y!);
+      const rect = container.getBoundingClientRect();
+      const w = rect.width || 800;
+      const h = rect.height || 560;
+      const bw = Math.max(...xs) - Math.min(...xs) + 160;
+      const bh = Math.max(...ys) - Math.min(...ys) + 160;
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+      const single = pts.length === 1 || (bw === 160 && bh === 160);
+      const k = single ? 1.8 : Math.min(Math.max(Math.min(w / bw, h / bh), 0.5), 2.2);
+      const target = zoomIdentity.translate(w / 2 - k * cx, h / 2 - k * cy).scale(k);
+
+      const animId = ++zoomAnimRef.current;
+      const from = transformRef.current;
+      const t0 = performance.now();
+      const step = (now: number) => {
+        if (animId !== zoomAnimRef.current) return;
+        const p = Math.min((now - t0) / 700, 1);
+        const e = 1 - Math.pow(1 - p, 3);
+        const tInterp = zoomIdentity
+          .translate(from.x + (target.x - from.x) * e, from.y + (target.y - from.y) * e)
+          .scale(from.k + (target.k - from.k) * e);
+        zoomBehavior.transform(d3select(svgEl), tInterp);
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+    poll();
+  }
+
+  // Copilot thread → graph focus: replies cite node ids, user messages may
+  // mention ids or labels; select the node and zoom to it.
+  const chatMessages = useCopilotStore((s) => s.messages);
+  // Sentinel "" = not yet initialised: first run adopts the tail of the
+  // existing thread so opening the page doesn't react to history.
+  const lastSeenMsgRef = useRef<string>("");
+  const chatLookup = useMemo(() => {
+    if (!view) return [];
+    const all = [
+      ...view.nodes,
+      ...Object.values(view.expansions).flatMap((e) => e.nodes),
+    ];
+    const seen = new Set<string>();
+    return all
+      .filter((n) => (seen.has(n.id) ? false : (seen.add(n.id), true)))
+      .map((n) => ({ id: n.id, label: n.label, isAgent: !!n.isAgent }));
+  }, [view]);
+
+  useEffect(() => {
+    const last = chatMessages[chatMessages.length - 1];
+    if (!view) return;
+    if (lastSeenMsgRef.current === "") {
+      lastSeenMsgRef.current = last?.id ?? "-";
+      return;
+    }
+    if (!last || last.id === lastSeenMsgRef.current) return;
+    lastSeenMsgRef.current = last.id;
+
+    let ids: string[] = [];
+    if (last.role === "agent") {
+      ids = (last.citations ?? []).map((c) => c.label);
+    } else {
+      const text = last.text;
+      const scored: { id: string; at: number; exact: boolean }[] = [];
+      for (const n of chatLookup) {
+        const esc = n.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const m = new RegExp(`\\b${esc}\\b`, "i").exec(text);
+        if (m) {
+          scored.push({ id: n.id, at: m.index, exact: true });
+          continue;
+        }
+        if (n.isAgent) continue;
+        // Match on any word of the label (>=4 chars) so "Helios" finds
+        // "Helios Medical Systems"; whole-word boundaries only.
+        for (const word of n.label.split(/[^\p{L}\p{N}]+/u)) {
+          if (word.length < 4) continue;
+          const escl = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const ml = new RegExp(`\\b${escl}\\b`, "i").exec(text);
+          if (ml) {
+            scored.push({ id: n.id, at: ml.index, exact: false });
+            break;
+          }
+        }
+      }
+      scored.sort((a, b) => Number(b.exact) - Number(a.exact) || a.at - b.at);
+      ids = [...new Set(scored.map((s) => s.id))];
+    }
+    if (!ids.length) return;
+    const known = ids.filter((id) => view.nodes.some((n) => n.id === id)
+      || Object.values(view.expansions).some((e) => e.nodes.some((n) => n.id === id)));
+    if (!known.length) return;
+    const raf = requestAnimationFrame(() => {
+      revealNode(known[0]);
+      zoomToNodes(known);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [chatMessages, view, chatLookup, revealNode]);
 
   const degrees = useMemo(
     () =>
