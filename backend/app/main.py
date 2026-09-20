@@ -8,6 +8,7 @@ from app.agents.feedback import FeedbackStore
 from app.agents.llm import build_llm
 from app.agents.registry import default_registry
 from app.api.router import api_router
+from app.chat.sessions import ChatSessionStore
 from app.config import settings
 from app.data.lake import DataLake
 from app.memory.graph import MemoryGraph
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.feedback = FeedbackStore(settings.feedback_path)
     app.state.llm = build_llm(settings)
     app.state.registry = default_registry()
+    app.state.chat_sessions = ChatSessionStore(settings.chat_sessions_path)
     yield
 
 

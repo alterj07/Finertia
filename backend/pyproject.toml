@@ -18,6 +18,9 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 
+[tool.ruff.lint.per-file-ignores]
+"app/chat/service.py" = ["E501"]  # SYSTEM_PROMPT must stay verbatim
+
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",

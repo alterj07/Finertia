@@ -32,6 +32,7 @@ Backend env vars (see `backend/.env`):
 | `DATA_DIR` | `../data` | Finance data lake (bank CSV, GL parquet, invoices JSONL, emails/) |
 | `MEMORY_GRAPH_PATH` | `./var/memory_graph.json` | Shared memory-graph JSON file |
 | `FEEDBACK_PATH` | `./var/feedback.json` | Tuning adjustments JSON file |
+| `CHAT_SESSIONS_PATH` | `./var/chat_sessions.json` | Chatbot session store JSON file |
 | `OPENAI_API_KEY` | — | Enables LLM orchestrator planning (fallback planner if unset) |
 | `OPENAI_MODEL` | `gpt-4o-mini` | Model used by the orchestrator planner |
 
@@ -59,18 +60,44 @@ app/
       models.py         RuleParams, Match, ReconSummary
       rules.py          MatchRule ABC + 4 ported passes + RuleBook (pins/blocks/params)
       agent.py          CashReconAgent — bank-to-book recon, emits findings to memory
+  chat/
+    models.py           ChatMessage/ToolCall/ToolEvent/ChatSession/ChatResponse
+    sessions.py         ChatSessionStore — JSON-file session list (var/chat_sessions.json)
+    tools.py            build_tools() — graph/orchestrator/feedback tools with citations
+    service.py          ChatService — the tool-calling loop (≤8 steps, OpenAI tools API)
   api/
     recon.py            POST /api/agents/recon/run
     memory.py           GET /api/memory/{graph,stats,node,context,search,signals,precedents,findings}
                         POST /api/memory/findings, POST /api/memory/reset
     feedback.py         GET/POST /api/feedback, DELETE /api/feedback/{id}
     orchestrator.py     GET /api/agents (specs), POST /api/orchestrator/run
+    chat.py             POST /api/chat, GET/DELETE /api/chat/sessions[/{id}]
 ```
 
 The orchestrator plans from the agent registry via OpenAI when
 `OPENAI_API_KEY` is set, and falls back to deterministic keyword matching
 otherwise. Each run is recorded as an `ORCHESTRATION_RUN` finding in the
 shared memory graph.
+
+### Chatbot
+
+`POST /api/chat` runs a tool-calling loop (`app/chat/service.py`): the LLM gets
+the system prompt plus session history, calls tools, and answers with inline
+`[node-id]` citations. Sessions persist to `var/chat_sessions.json` and are
+resumable via `?session=<id>` on `/chat`. Requires `OPENAI_API_KEY` (503
+without it). Tools (`app/chat/tools.py`):
+
+| Tool | Purpose |
+| --- | --- |
+| `search_memory` | BM25 search over all graph nodes |
+| `get_context` | neighbourhood + prior findings around a node |
+| `get_findings` | list memory findings by code/agent |
+| `get_precedents` | a party's history, patterns, past findings |
+| `get_signals` | structural leads the graph surfaces |
+| `list_agents` | registered agent specs |
+| `run_orchestrator` | run specialist agents for a request |
+| `record_feedback` | write a tuning Adjustment for an agent |
+| `list_feedback` | list recorded adjustments |
 
 ## Frontend
 

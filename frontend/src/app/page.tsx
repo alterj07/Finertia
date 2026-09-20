@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { apiFetch } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -45,6 +47,9 @@ export default function Home() {
           ) : (
             <p className="text-muted-foreground text-sm">Loading…</p>
           )}
+          <Button render={<Link href="/chat" />} className="mt-4 w-full">
+            Open Finertia Assistant
+          </Button>
         </CardContent>
       </Card>
     </main>
