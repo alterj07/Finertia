@@ -11,7 +11,7 @@ const DIGIT = /[0-9]/;
 export function RollingFigure({
   value,
   className,
-  duration = 900,
+  duration = 1000,
 }: {
   value: string;
   className?: string;
@@ -51,7 +51,7 @@ export function RollingFigure({
         setFrame(null);
         return;
       }
-      if (now - lastJitter >= 50) {
+      if (now - lastJitter >= 80) {
         lastJitter = now;
         rand = rand.map(() => String(Math.floor(Math.random() * 10)));
       }
