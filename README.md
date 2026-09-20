@@ -60,6 +60,9 @@ app/
       models.py         RuleParams, Match, ReconSummary
       rules.py          MatchRule ABC + 4 ported passes + RuleBook (pins/blocks/params)
       agent.py          CashReconAgent — bank-to-book recon, emits findings to memory
+    deals/
+      agent.py          DealsAgent — inbox triage: which emails are sales opportunities,
+                        stage, value estimate, credit check vs memory, reply draft
     apar/
       agent.py          APARAgent — deterministic AP/AR: duplicates, amount mismatches vs
                         OCR'd scans, accruals, remit-to changes, short pays, promises to
@@ -71,6 +74,7 @@ app/
     service.py          ChatService — the tool-calling loop (≤8 steps, OpenAI tools API)
   api/
     recon.py            POST /api/agents/recon/run, POST /api/agents/apar/run
+    deals.py            POST /api/agents/deals/run, GET /api/deals (inbox triage + drafts)
     memory.py           GET /api/memory/{graph,stats,node,context,search,signals,precedents,findings}
                         POST /api/memory/findings, POST /api/memory/reset
     feedback.py         GET/POST /api/feedback, DELETE /api/feedback/{id}
@@ -188,3 +192,25 @@ scan:
 ```bash
 cd backend && uv run --no-project --with rapidocr-onnxruntime --with pillow python scripts/ocr_scans.py
 ```
+
+### Deals agent (inbox → opportunities → reply drafts)
+
+The **Deals** screen lists every email in `data/emails/` with the agent's verdict.
+Classification is deterministic: buying-intent words (quote, RFQ, pilot, renew,
+units, pricing...) score up; vendor senders, internal mail and operations
+phrases (remittance, resending, short payment, "reply to accept") score down;
+sent-to-`sales@` scores up. Score ≥ 4 is a deal, staged as New inbound
+(unknown domain), Expansion, Renewal or RFQ.
+
+For each deal the agent sizes it (amount in the email, else units × the
+customer's average invoice), pulls the customer's record from shared memory
+(invoices, open AR, invoices more than 7 days past due, promises to pay,
+disputes) and drafts a reply from a template filled with those facts. A
+customer with past-due invoices gets a credit-terms paragraph and the finding
+is marked high severity. If `OPENAI_API_KEY` is set the draft is rephrased by
+the model, but only kept if every number survives; otherwise the template is
+shown. Nothing is sent: the UI offers "Copy draft".
+
+Seven sample sales emails (`013`–`019`) sit alongside the twelve operations
+emails so the triage has both kinds to separate; `018_vantage_upsell.eml` is a
+vendor selling to us and is correctly ruled out.

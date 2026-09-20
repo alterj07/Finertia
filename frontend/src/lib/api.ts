@@ -166,6 +166,7 @@ export interface AgentRunResult {
 const AGENT_ROUTES: Record<string, string> = {
   "Cash & Reconciliation": "/api/agents/recon/run",
   "AP/AR": "/api/agents/apar/run",
+  Deals: "/api/agents/deals/run",
 };
 
 export function listAgents(): Promise<AgentSpec[]> {
@@ -186,4 +187,53 @@ export function runAgent(name: string, params: Record<string, unknown> = {}): Pr
     ...init,
     body: JSON.stringify({ request: name, defaults: params }),
   }).then((r) => r.results[0] ?? { summary: {}, findings: [] });
+}
+
+// ---- deals ----
+
+export interface DealDraft {
+  to: string;
+  subject: string;
+  body: string;
+  polished?: string;
+}
+
+export interface DealHistory {
+  invoices: number;
+  lifetime_billed: number;
+  open_ar: number;
+  overdue_count: number;
+  overdue_amount: number;
+  paid_on_time: number;
+  notes: string[];
+}
+
+export interface DealItem {
+  email: string;
+  subject: string;
+  sender: string;
+  date: string;
+  is_deal: boolean;
+  stage: string;
+  score: number;
+  reason: string;
+  party_id: string | null;
+  body: string;
+  finding_id: string | null;
+  value_estimate: number | null;
+  credit_risk: string | null;
+  history: DealHistory | null;
+  draft: DealDraft | null;
+  evidence: string[];
+}
+
+export interface DealsResponse {
+  as_of: string;
+  pipeline_estimate: number;
+  deals: number;
+  items: DealItem[];
+}
+
+export function fetchDeals(): Promise<DealsResponse> {
+  return apiFetch<DealsResponse>("/api/deals");
 }

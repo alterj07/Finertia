@@ -31,6 +31,6 @@ def test_load_invoices(data_dir: Path) -> None:
 
 def test_load_emails(data_dir: Path) -> None:
     emails = load_emails(data_dir)
-    assert len(emails) == 12
+    assert len(emails) == 19
     assert all(m.file.endswith(".eml") for m in emails)
     assert any(m.amounts for m in emails)

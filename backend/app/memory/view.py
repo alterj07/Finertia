@@ -22,6 +22,7 @@ AGENTS = [
     ("agent-close", "Close Agent", "close", ["Close"]),
     ("agent-forecast", "Forecast Agent", "forecast", ["Forecasting"]),
     ("agent-audit", "Audit Agent", "audit", ["Audit & Controls", "Orchestrator"]),
+    ("agent-deals", "Deals Agent", "receivables", ["Deals"]),
 ]
 
 TYPE_LABEL = {

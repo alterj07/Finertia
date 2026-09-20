@@ -16,6 +16,8 @@ export function pathToModule(pathname: string): ModuleKey {
       return "forecast";
     case "audit":
       return "audit";
+    case "deals":
+      return "deals";
     case "graph":
       return "graph";
     default:

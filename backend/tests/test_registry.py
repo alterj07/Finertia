@@ -4,7 +4,7 @@ from app.agents.registry import default_registry
 
 def test_default_registry() -> None:
     reg = default_registry()
-    assert reg.names() == ["Cash & Reconciliation", "AP/AR"]
+    assert reg.names() == ["Cash & Reconciliation", "AP/AR", "Deals"]
     spec = reg.specs()[0]
     assert spec.name == "Cash & Reconciliation"
     assert "start" in spec.params and "end" in spec.params

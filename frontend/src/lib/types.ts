@@ -14,6 +14,7 @@ export type ModuleKey =
   | "close"
   | "forecast"
   | "audit"
+  | "deals"
   | "graph";
 
 export interface ModuleMeta {
