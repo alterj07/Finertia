@@ -31,10 +31,6 @@ import { GraphHint } from "@/components/graph/graph-hint";
 import { GraphLegend } from "@/components/graph/graph-legend";
 import { GraphDetailPanel } from "@/components/graph/graph-detail-panel";
 
-/** Hover/selection highlight: connections light up and the rest dims. */
-const FOCUS_TRANSITION =
-  "opacity 260ms cubic-bezier(0.32, 0.72, 0, 1), stroke 260ms ease, stroke-width 260ms ease, transform 260ms cubic-bezier(0.32, 0.72, 0, 1)";
-
 type FilterId = "all" | "agents" | (typeof MODULE_GROUPS)[number];
 
 function DeepLink({ onNode }: { onNode: (id: string) => void }) {
@@ -66,6 +62,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<FilterId>("all");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const draggingRef = useRef(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
@@ -265,6 +262,9 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
           const id = el.dataset.id!;
           const node = nodesRef.current.find((n) => n.id === id);
           if (!node) return;
+          draggingRef.current = true;
+          if (svgRef.current) svgRef.current.dataset.dragging = "true";
+          setHoveredId(id);
           if (!event.active) simulationRef.current?.alphaTarget(0.15).restart();
           node.fx = node.x;
           node.fy = node.y;
@@ -279,6 +279,8 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
           scheduleRender();
         })
         .on("end", (event) => {
+          draggingRef.current = false;
+          if (svgRef.current) delete svgRef.current.dataset.dragging;
           const id = el.dataset.id!;
           const node = nodesRef.current.find((n) => n.id === id);
           if (!node) return;
@@ -477,12 +479,9 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                     y1={s.y}
                     x2={t.x}
                     y2={t.y}
-                    style={{
-                      stroke: isFresh ? "var(--gold)" : connected ? "var(--green)" : "var(--rule)",
-                      strokeWidth: isFresh ? 2 : connected ? 1.75 : 1,
-                      opacity: dimmed ? 0.08 : 1,
-                      transition: FOCUS_TRANSITION,
-                    }}
+                    className="graph-link"
+                    data-focus={connected ? "connected" : dimmed ? "dim" : undefined}
+                    data-fresh={isFresh || undefined}
                   />
                 );
               })}
@@ -507,10 +506,18 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                     tabIndex={0}
                     role="button"
                     aria-label={`${node.label}, ${node.type}${node.aggregate ? ", expandable" : ""}`}
-                    onMouseEnter={() => setHoveredId(node.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                    onFocus={() => setHoveredId(node.id)}
-                    onBlur={() => setHoveredId(null)}
+                    onMouseEnter={() => {
+                      if (!draggingRef.current) setHoveredId(node.id);
+                    }}
+                    onMouseLeave={() => {
+                      if (!draggingRef.current) setHoveredId(null);
+                    }}
+                    onFocus={() => {
+                      if (!draggingRef.current) setHoveredId(node.id);
+                    }}
+                    onBlur={() => {
+                      if (!draggingRef.current) setHoveredId(null);
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleNodeClick(node);
@@ -521,8 +528,11 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                         handleNodeClick(node);
                       }
                     }}
-                    className="cursor-pointer outline-none"
-                    style={{ opacity: dimmed ? 0.12 : 1, transition: FOCUS_TRANSITION }}
+                    className="graph-node cursor-pointer select-none outline-none"
+                    data-focus={
+                      isFocused ? "focused" : isNeighbor ? "neighbor" : dimmed ? "dim" : undefined
+                    }
+                    data-touched={isTouched || undefined}
                   >
                     {isFresh && (
                       <circle r={radius + 6} fill="var(--gold)" opacity={0.25}>
@@ -532,14 +542,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                     <circle
                       r={radius}
                       fill={isFresh ? "var(--gold)" : GROUP_COLOR[node.group]}
-                      style={{
-                        stroke: isFocused || isNeighbor ? "var(--green)" : isTouched ? "var(--gold)" : "transparent",
-                        strokeWidth: isFocused ? 2.5 : isNeighbor ? 1.5 : isTouched ? 2 : 0,
-                        transform: isFocused ? "scale(1.18)" : isNeighbor ? "scale(1.06)" : "scale(1)",
-                        transformBox: "fill-box",
-                        transformOrigin: "center",
-                        transition: FOCUS_TRANSITION,
-                      }}
+                      className="graph-node-core"
                     />
                     <text
                       y={radius + 11}

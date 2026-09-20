@@ -247,6 +247,20 @@ body {
 .stagger-fast > *:nth-child(11) { animation-delay: 400ms; }
 .stagger-fast > *:nth-child(n + 12) { animation-delay: 440ms; }
 
+/* Memory graph: hover/selection focus. State comes from data attributes so the
+   per-frame React re-render doesn't touch styles. */
+.graph-link { stroke: var(--rule); stroke-width: 1; transition: opacity 260ms cubic-bezier(0.32, 0.72, 0, 1), stroke 260ms ease, stroke-width 260ms ease; }
+.graph-link[data-focus="connected"] { stroke: var(--green); stroke-width: 1.75; }
+.graph-link[data-focus="dim"] { opacity: 0.08; }
+.graph-link[data-fresh] { stroke: var(--gold); stroke-width: 2; }
+.graph-node { transition: opacity 260ms cubic-bezier(0.32, 0.72, 0, 1); }
+.graph-node[data-focus="dim"] { opacity: 0.12; }
+.graph-node-core { stroke: transparent; stroke-width: 0; transform-box: fill-box; transform-origin: center; transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1), stroke 260ms ease, stroke-width 260ms ease; }
+.graph-node[data-touched] .graph-node-core { stroke: var(--gold); stroke-width: 2; }
+.graph-node[data-focus="neighbor"] .graph-node-core { stroke: var(--green); stroke-width: 1.5; transform: scale(1.06); }
+.graph-node[data-focus="focused"] .graph-node-core { stroke: var(--green); stroke-width: 2.5; transform: scale(1.18); }
+svg[data-dragging] .graph-node { pointer-events: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
