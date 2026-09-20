@@ -162,7 +162,7 @@ export function GraphCanvas({
     );
     sim.force(
       "collision",
-      forceCollide<SimNode>().radius((d) => nodeRadius(d, degrees.get(d.id) ?? 0) + 11),
+      forceCollide<SimNode>().radius((d) => nodeRadius(d, degrees.get(d.id) ?? 0) + 14),
     );
   }, []);
 
@@ -202,13 +202,15 @@ export function GraphCanvas({
             const agentNodeIds = keywords
               ? data.nodes.filter((n) => n.isAgent && keywords.some((kw) => n.label.toLowerCase().includes(kw))).map((n) => n.id)
               : [];
-            if (agentNodeIds.length) {
-              const neighborIds = new Set(agentNodeIds);
-              for (const e of data.edges) {
-                if (agentNodeIds.includes(e.source)) neighborIds.add(e.target);
-                if (agentNodeIds.includes(e.target)) neighborIds.add(e.source);
-              }
-              if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
+            const neighborIds = new Set(agentNodeIds);
+            for (const e of data.edges) {
+              if (agentNodeIds.includes(e.source)) neighborIds.add(e.target);
+              if (agentNodeIds.includes(e.target)) neighborIds.add(e.source);
+            }
+            if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
+            if (agentNodeIds.length && neighborIds.size > agentNodeIds.length) {
+              // The agent has something connected to it — zoom in and light
+              // up that neighbourhood.
               const raf = requestAnimationFrame(() => {
                 setSpotlightIds(neighborIds);
                 zoomToNodes(agentNodeIds);
@@ -216,6 +218,14 @@ export function GraphCanvas({
               spotlightTimerRef.current = setTimeout(() => setSpotlightIds(null), 5000);
               return () => cancelAnimationFrame(raf);
             }
+            // No agent node found, or it has nothing connected to it (e.g.
+            // Deals/Audit with no current findings) — zoom back out to the
+            // whole map instead of leaving the view sitting on nothing.
+            const raf = requestAnimationFrame(() => {
+              setSpotlightIds(null);
+              zoomToNodes(data.nodes.map((n) => n.id));
+            });
+            return () => cancelAnimationFrame(raf);
           }
           return;
         }
@@ -326,7 +336,7 @@ export function GraphCanvas({
     // Start compact — a small phyllotaxis disk around the centre, rather
     // than d3's default spiral (which grows with node count) — so the
     // layout doesn't visibly "explode" outward on first paint.
-    const startRadius = Math.min(width, height) * 0.16;
+    const startRadius = Math.min(width, height) * 0.2;
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
     const nodes: SimNode[] = view.nodes.map((n, i) => {
       const r = startRadius * Math.sqrt((i + 0.5) / view.nodes.length);
@@ -346,13 +356,13 @@ export function GraphCanvas({
         "link",
         forceLink<SimNode, SimLink>(links)
           .id((d) => d.id)
-          .distance(55)
+          .distance(65)
           .strength(0.5),
       )
       // distanceMax keeps two nodes that are already far apart from
       // continuing to push each other away — that's what let the layout
       // drift open over time even with a modest charge strength.
-      .force("charge", forceManyBody().strength(-65).distanceMax(260))
+      .force("charge", forceManyBody().strength(-95).distanceMax(280))
       .force("center", forceCenter(cx, cy))
       .alphaDecay(0.04)
       .on("tick", scheduleRender);

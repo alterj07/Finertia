@@ -129,11 +129,13 @@ function WorkQueue({
 
   return (
     <SectionBlock title="Work Queue">
-      <DataTable
-        columns={columns}
-        rows={items}
-        onRowClick={(r) => onOpen(tabByRow.get(r.id) ?? "ap-ar")}
-      />
+      <div className="border border-rule bg-paper-raised p-3">
+        <DataTable
+          columns={columns}
+          rows={items}
+          onRowClick={(r) => onOpen(tabByRow.get(r.id) ?? "ap-ar")}
+        />
+      </div>
     </SectionBlock>
   );
 }
@@ -221,7 +223,9 @@ function ClosePanel() {
         <div>
           <div className="mb-2.5 flex items-baseline justify-between gap-3">
             <h3 className="font-serif text-base text-ink">Close checklist</h3>
-            <span className="font-mono text-sm text-gold">{d.days_remaining} days remaining</span>
+            {d.days_remaining && d.days_remaining !== "N/A" && (
+              <span className="font-mono text-sm text-gold">{d.days_remaining} days remaining</span>
+            )}
           </div>
           <DataTable columns={columns} rows={buildCloseRows(d)} />
 
