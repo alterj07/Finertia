@@ -78,6 +78,7 @@ class OpenAIProvider:
             model=self.model,
             messages=messages,
             temperature=0,
+            max_tokens=kw.get("max_tokens", self._not_given),
             response_format={"type": "json_object"} if json_mode else self._not_given,
         )
         return resp.choices[0].message.content or ""

@@ -15,7 +15,8 @@ export type ModuleKey =
   | "forecast"
   | "audit"
   | "deals"
-  | "graph";
+  | "graph"
+  | "flight-simulator";
 
 export interface ModuleMeta {
   key: ModuleKey;
