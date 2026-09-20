@@ -105,8 +105,12 @@ const post = (path: string, body: unknown) =>
     body: JSON.stringify(body),
   });
 
-export function sendChat(sessionId: string | null, message: string) {
-  return post("/api/chat", { session_id: sessionId, message });
+export function sendChat(
+  sessionId: string | null,
+  message: string,
+  context?: string,
+) {
+  return post("/api/chat", { session_id: sessionId, message, context });
 }
 
 export function listSessions() {

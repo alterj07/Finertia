@@ -17,6 +17,7 @@ export function CopilotRail() {
   const activeModule = useCopilotStore((s) => s.activeModule);
   const messages = useCopilotStore((s) => s.messages[s.activeModule] ?? EMPTY_MESSAGES);
   const sendMessage = useCopilotStore((s) => s.sendMessage);
+  const pending = useCopilotStore((s) => s.pending);
   const pendingDraft = useCopilotStore((s) => s.pendingDraft);
   const clearPendingDraft = useCopilotStore((s) => s.clearPendingDraft);
 
@@ -47,7 +48,7 @@ export function CopilotRail() {
   }, [consumedDraft, clearPendingDraft]);
 
   function submit(text: string) {
-    if (!text.trim()) return;
+    if (!text.trim() || pending) return;
     sendMessage(activeModule, text);
     setInput("");
   }
@@ -77,14 +78,14 @@ export function CopilotRail() {
                 <div className="mb-1 font-mono text-2xs tracking-wide text-ink-soft">FINERTIA</div>
                 <p className="text-sm leading-relaxed text-ink">{m.text}</p>
                 {m.citations && m.citations.length > 0 && (
-                  <div className="mt-1.5 flex flex-col items-start gap-1">
+                  <div className="mt-1.5 flex flex-wrap items-start gap-1">
                     {m.citations.map((c) => (
                       <Link
                         key={c.href + c.label}
                         href={c.href}
-                        className="text-xs text-blue underline decoration-blue/30 underline-offset-2 hover:decoration-blue"
+                        className="rounded border border-rule bg-paper px-1.5 py-0.5 font-mono text-2xs text-blue hover:border-blue"
                       >
-                        {c.label} →
+                        {c.label}
                       </Link>
                     ))}
                   </div>
@@ -98,6 +99,12 @@ export function CopilotRail() {
               </div>
             ),
           )}
+          {pending && (
+            <div className="max-w-[70ch]">
+              <div className="mb-1 font-mono text-2xs tracking-wide text-ink-soft">FINERTIA</div>
+              <p className="text-sm text-ink-soft">Thinking…</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -108,7 +115,8 @@ export function CopilotRail() {
               key={s}
               type="button"
               onClick={() => submit(s)}
-              className="rounded-chip border border-rule px-2.5 py-1 text-xs text-ink-soft hover:border-ink-soft hover:text-ink"
+              disabled={pending}
+              className="rounded-chip border border-rule px-2.5 py-1 text-xs text-ink-soft hover:border-ink-soft hover:text-ink disabled:opacity-40"
             >
               {s}
             </button>
@@ -127,13 +135,14 @@ export function CopilotRail() {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about any number…"
             aria-label="Ask Finertia"
-            className="min-w-0 flex-1 rounded-chip border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-soft focus-visible:border-blue"
+            disabled={pending}
+            className="min-w-0 flex-1 rounded-chip border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-soft focus-visible:border-blue disabled:opacity-50"
           />
           <button
             type="submit"
             aria-label="Send"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-paper hover:bg-ink/85 disabled:opacity-40"
-            disabled={!input.trim()}
+            disabled={!input.trim() || pending}
           >
             <ArrowUp size={15} />
           </button>
