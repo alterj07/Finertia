@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -10,18 +11,78 @@ from app.agents.registry import default_registry
 from app.api.router import api_router
 from app.chat.sessions import ChatSessionStore
 from app.config import settings
+from app.data.es_lake import ElasticDataLake
+from app.data.es_store import ElasticStore
+from app.data.ingest import ingest_lake
 from app.data.lake import DataLake
+from app.memory.es_sync import ElasticMemorySync
 from app.memory.graph import MemoryGraph
+
+log = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    app.state.lake = (
-        DataLake.from_dir(settings.data_dir) if settings.data_dir.is_dir() else None
+    backend = "local"
+    store = None
+    if settings.storage_backend == "elastic":
+        store = ElasticStore(
+            settings.es_url,
+            api_key=(
+                settings.es_api_key.get_secret_value() if settings.es_api_key else None
+            ),
+            prefix=settings.es_index_prefix,
+        )
+        if store.ping():
+            needs_ingest = (
+                not store.exists("fin-bank")
+                or store.count("fin-bank") == 0
+                or not store.schema_ok("fin-bank")
+            )
+            if needs_ingest and settings.data_dir.is_dir():
+                log.info("re-ingesting: indices missing/empty/incompatible")
+                ingest_lake(DataLake.from_dir(settings.data_dir), store)
+                needs_ingest = False
+            if needs_ingest:
+                log.warning(
+                    "fin-* indices missing/empty/incompatible and DATA_DIR %s "
+                    "is unavailable; falling back to local",
+                    settings.data_dir,
+                )
+                store = None
+            else:
+                app.state.lake = ElasticDataLake(
+                    store,
+                    data_dir=(
+                        settings.data_dir if settings.data_dir.is_dir() else None
+                    ),
+                )
+                backend = "elastic"
+        else:
+            log.warning(
+                "STORAGE_BACKEND=elastic but ES unreachable at %s; falling back to local",
+                settings.es_url,
+            )
+            store = None
+    if backend == "local":
+        app.state.lake = (
+            DataLake.from_dir(settings.data_dir)
+            if settings.data_dir.is_dir()
+            else None
+        )
+    app.state.es_store = store
+    app.state.memory = MemoryGraph(
+        None if backend == "elastic" else settings.memory_graph_path
     )
-    app.state.memory = MemoryGraph(settings.memory_graph_path)
     if app.state.lake is not None:
         app.state.memory.seed(app.state.lake)
+    if backend == "elastic":
+        app.state.memory.attach_sync(ElasticMemorySync(store))
+    app.state.storage = {
+        "backend": backend,
+        "es_url": settings.es_url if backend == "elastic" else None,
+        "memory": "elasticsearch" if backend == "elastic" else "json",
+    }
     app.state.feedback = FeedbackStore(settings.feedback_path)
     app.state.llm = build_llm(settings)
     app.state.registry = default_registry()
