@@ -16,13 +16,26 @@ def tools(ctx: AgentContext):
 
 def test_search_memory(tools) -> None:
     out = tools["search_memory"].fn("helios")
-    assert len(out["results"]) >= 1
-    assert all("id" in r for r in out["results"])
-    assert out["citations"] == [r["id"] for r in out["results"]]
+    assert len(out["nodes"]) >= 1
+    assert all("id" in r for r in out["nodes"])
+    assert out["citations"][: len(out["nodes"])] == [r["id"] for r in out["nodes"]]
+
+
+def test_search_memory_finds_finding_by_number_word(tools, ctx) -> None:
+    default_registry().get("Cash & Reconciliation").run(ctx)
+    out = tools["search_memory"].fn("bank credit matched three invoices")
+    codes = [f["code"] for f in out["findings"]]
+    assert "LUMP_SUM_MATCH" in codes
+
+
+def test_search_memory_link_counts(tools) -> None:
+    out = tools["search_memory"].fn("BK00044", k=10)
+    node = next(n for n in out["nodes"] if n["id"] == "BK00044")
+    assert node["links"]["SETTLES"] == 3
 
 
 def test_get_context(tools) -> None:
-    hit = tools["search_memory"].fn("helios")["results"][0]["id"]
+    hit = tools["search_memory"].fn("helios")["nodes"][0]["id"]
     out = tools["get_context"].fn(hit)
     assert out["text"]
     assert hit in out["node_ids"]

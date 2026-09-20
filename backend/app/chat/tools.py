@@ -3,6 +3,7 @@ always carries "citations": the graph node ids the result touched, so the UI
 can show the evidence behind an answer.
 """
 
+import re
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
@@ -40,6 +41,56 @@ def _summary(props: dict[str, Any]) -> str:
     return ", ".join(parts)[:120]
 
 
+_NUMBER_WORDS = {
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+    "eleven": "11",
+    "twelve": "12",
+}
+_TOKEN = re.compile(r"[a-z0-9]+")
+
+
+def _normalise_query(query: str) -> str:
+    """'three invoices' -> '3 invoices': number words become digits so they
+    match finding text written with numerals."""
+    return " ".join(_NUMBER_WORDS.get(w, w) for w in query.lower().split())
+
+
+def _match_findings(g, query: str, k: int = 5) -> list[dict[str, Any]]:
+    """Simple token-overlap match over finding title/detail/key."""
+    terms = set(_TOKEN.findall(query.lower()))
+    if not terms:
+        return []
+    scored = []
+    for f in g.findings:
+        hay = set(_TOKEN.findall(f"{f.title} {f.detail} {f.key}".lower()))
+        score = len(terms & hay)
+        if score:
+            scored.append((score, f))
+    scored.sort(key=lambda x: (-x[0], x[1].created_at))
+    return [
+        {
+            "node_id": f"finding:{f.code}:{f.key}",
+            "code": f.code,
+            "key": f.key,
+            "title": f.title,
+            "amount": f.amount,
+        }
+        for _, f in scored[:k]
+    ]
+
+
+_LINK_COUNT_TYPES = {"bank_txn", "journal", "invoice"}
+
+
 def _str_schema(props: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
     return {"type": "object", "properties": props, "required": required or []}
 
@@ -52,13 +103,27 @@ def build_tools(
     def search_memory(
         query: str, types: list[str] | None = None, k: int = 10
     ) -> dict[str, Any]:
-        hits = g.search(query, types=types, k=k)
+        norm = _normalise_query(query)
+        hits = g.search(norm, types=types, k=k)
+        findings = _match_findings(g, norm)
+        nodes = []
+        for s, n in hits:
+            item: dict[str, Any] = {
+                "id": n.id,
+                "type": n.type,
+                "score": s,
+                "summary": _summary(n.props),
+            }
+            if n.type in _LINK_COUNT_TYPES:
+                links: dict[str, int] = {}
+                for e in g.out_edges(n.id):
+                    links[e.rel] = links.get(e.rel, 0) + 1
+                item["links"] = links
+            nodes.append(item)
         return {
-            "results": [
-                {"id": n.id, "type": n.type, "score": s, "summary": _summary(n.props)}
-                for s, n in hits
-            ],
-            "citations": [n.id for _, n in hits],
+            "findings": findings,
+            "nodes": nodes,
+            "citations": [n.id for _, n in hits] + [f["node_id"] for f in findings],
         }
 
     def get_context(node_id: str, depth: int = 2) -> dict[str, Any]:
@@ -168,8 +233,9 @@ def build_tools(
     return [
         Tool(
             name="search_memory",
-            description="BM25 keyword search over every node in the shared memory graph "
-            "(invoices, journal entries, bank transactions, emails, parties, findings).",
+            description="Keyword search over graph nodes AND agent findings. Findings are "
+            "conclusions; nodes are raw evidence. Check `links` counts before claiming "
+            "how many items a bank line matched.",
             parameters=_str_schema(
                 {
                     "query": {"type": "string", "description": "keywords, names, refs or amounts"},

@@ -13,6 +13,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 class ChatRequest(BaseModel):
     session_id: str | None = None
     message: str
+    context: str | None = None
 
 
 def _service(request: Request) -> ChatService:
@@ -40,6 +41,7 @@ def _service(request: Request) -> ChatService:
         llm=llm,
         tools=build_tools(ctx, app.state.registry, orchestrator),
         sessions=app.state.chat_sessions,
+        memory=app.state.memory,
     )
 
 
@@ -47,7 +49,7 @@ def _service(request: Request) -> ChatService:
 def post_chat(req: ChatRequest, request: Request) -> ChatResponse:
     service = _service(request)
     try:
-        return service.respond(req.session_id, req.message)
+        return service.respond(req.session_id, req.message, context=req.context)
     except Exception as exc:
         raise HTTPException(
             status_code=502, detail=f"LLM provider error: {type(exc).__name__}"

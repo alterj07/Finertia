@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   forceCenter,
   forceCollide,
@@ -31,6 +32,15 @@ import { GraphLegend } from "@/components/graph/graph-legend";
 import { GraphDetailPanel } from "@/components/graph/graph-detail-panel";
 
 type FilterId = "all" | "agents" | (typeof MODULE_GROUPS)[number];
+
+function DeepLink({ onNode }: { onNode: (id: string) => void }) {
+  const params = useSearchParams();
+  const node = params.get("node");
+  useEffect(() => {
+    if (node) onNode(node);
+  }, [node, onNode]);
+  return null;
+}
 
 // The simulation's canonical, mutable node/link arrays live in refs — d3
 // mutates node.x/y/fx/fy in place every tick, and that must not go through
@@ -266,6 +276,32 @@ export function GraphCanvas() {
     [expandNode],
   );
 
+  // Deep-link (?node=<id>): select a cited node; if it lives inside an
+  // aggregate's expansion, expand the parent first so it becomes visible.
+  const deepLinkedRef = useRef<string | null>(null);
+  const handleDeepLink = useCallback(
+    (id: string) => {
+      if (deepLinkedRef.current === id) return;
+      if (!view) return;
+      if (view.nodes.some((n) => n.id === id)) {
+        deepLinkedRef.current = id;
+        setSelectedId(id);
+        setHasInteracted(true);
+        return;
+      }
+      for (const [parentId, expansion] of Object.entries(view.expansions)) {
+        if (expansion.nodes.some((n) => n.id === id)) {
+          deepLinkedRef.current = id;
+          setSelectedId(id);
+          setHasInteracted(true);
+          expandNode(parentId);
+          return;
+        }
+      }
+    },
+    [view, expandNode],
+  );
+
   const degrees = useMemo(
     () =>
       computeDegrees(
@@ -450,6 +486,9 @@ export function GraphCanvas() {
         )}
         {view && !hasInteracted && <GraphHint />}
         <GraphLegend />
+        <Suspense fallback={null}>
+          <DeepLink onNode={handleDeepLink} />
+        </Suspense>
         {selectedNode && (
           <GraphDetailPanel
             node={selectedNode}

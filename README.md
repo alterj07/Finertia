@@ -99,6 +99,26 @@ without it). Tools (`app/chat/tools.py`):
 | `record_feedback` | write a tuning Adjustment for an agent |
 | `list_feedback` | list recorded adjustments |
 
+## Deploy
+
+The backend ships as a Docker image built from the repo root (it bundles `data/`):
+
+- `backend/Dockerfile` — uv-based, `uvicorn app.main:app` on `$PORT` (default 8000)
+- `render.yaml` — Render blueprint: web service `finertia-api`, health check `/api/health`
+
+Steps:
+
+1. Push the repo and create a new **Blueprint** on Render pointing at `render.yaml`.
+2. Set env vars on the Render service:
+   - `OPENAI_API_KEY` — required for the chatbot and LLM orchestrator planning
+   - `CORS_ORIGINS` — `https://<your-vercel-app>.vercel.app`
+   - `OPENAI_MODEL` defaults to `gpt-4o-mini`
+3. Deploy the frontend on Vercel with `NEXT_PUBLIC_API_URL=https://<render-service>.onrender.com`.
+
+Note: `var/` state (memory graph, feedback, chat sessions) lives on the
+container filesystem — on Render's free plan it is ephemeral and resets on
+redeploy/restart. The seeded base layer is rebuilt from `data/` on every start.
+
 ## Frontend
 
 ```bash

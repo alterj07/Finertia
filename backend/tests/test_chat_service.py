@@ -10,6 +10,7 @@ from app.agents.registry import default_registry
 from app.chat.service import ChatService
 from app.chat.sessions import ChatSessionStore
 from app.chat.tools import build_tools
+from app.memory.models import Finding
 
 
 class ScriptedLLM:
@@ -17,6 +18,7 @@ class ScriptedLLM:
 
     def __init__(self, turns: list[ChatTurn]) -> None:
         self.turns = list(turns)
+        self.received: list[list[dict]] = []
 
     def complete(self, prompt: str, **kw: Any) -> str:
         return ""
@@ -24,6 +26,7 @@ class ScriptedLLM:
     def chat(
         self, messages: list[dict], tools: list[dict] | None = None, **kw: Any
     ) -> ChatTurn:
+        self.received.append(list(messages))
         return self.turns.pop(0)
 
 
@@ -82,6 +85,73 @@ def test_unknown_tool(service) -> None:
     tool_msgs = [m for m in sessions.get(resp.session_id).messages if m.role == "tool"]
     assert "unknown tool" in tool_msgs[0].content
     assert resp.message.content == "I could not use that tool."
+
+
+def test_context_is_transient(service) -> None:
+    ctx, sessions, tools = service
+    llm = ScriptedLLM([ChatTurn(content="ok")])
+    resp = _svc(tools, sessions, llm).respond(
+        None, "what is open?", context="Module: reconciliation"
+    )
+    sent = llm.received[0]
+    assert sent[-2] == {"role": "system", "content": "Screen context: Module: reconciliation"}
+    assert sent[-1]["content"] == "what is open?"
+    # not persisted
+    persisted = sessions.get(resp.session_id).messages
+    assert all(m.content != "Screen context: Module: reconciliation" for m in persisted)
+    assert [m.role for m in persisted] == ["user", "assistant"]
+
+
+def test_findings_digest_is_transient(service) -> None:
+    ctx, sessions, tools = service
+    ctx.memory.remember(
+        Finding(
+            agent="Cash & Reconciliation",
+            code="LUMP_SUM_MATCH",
+            key="BK00044",
+            title="Bank credit BK00044 covers 3 invoices",
+            detail="Many-to-one match",
+            amount=58339.68,
+            entities=["BK00044", "AR-1033"],
+        )
+    )
+    llm = ScriptedLLM([ChatTurn(content="ok")])
+    resp = _svc(tools, sessions, llm, memory=ctx.memory).respond(None, "hi")
+    digest = llm.received[0][1]
+    assert digest["role"] == "system"
+    assert digest["content"].startswith("Current agent findings")
+    assert "[finding:LUMP_SUM_MATCH:BK00044]" in digest["content"]
+    assert "$58,339.68" in digest["content"]
+    assert "BK00044, AR-1033" in digest["content"]
+    persisted = sessions.get(resp.session_id).messages
+    assert all("Current agent findings" not in (m.content or "") for m in persisted)
+
+
+def test_citations_include_digest_ids(service) -> None:
+    ctx, sessions, tools = service
+    ctx.memory.remember(
+        Finding(
+            agent="Cash & Reconciliation",
+            code="FX_DIFFERENCE",
+            key="BP-4471",
+            title="FX difference on BP-4471",
+            detail="Settled vs booked",
+            amount=72.0,
+            entities=["BP-4471"],
+        )
+    )
+    llm = ScriptedLLM(
+        [ChatTurn(content="See [finding:FX_DIFFERENCE:BP-4471] and [NOPE-1].")]
+    )
+    resp = _svc(tools, sessions, llm, memory=ctx.memory).respond(None, "hi")
+    assert resp.citations == ["finding:FX_DIFFERENCE:BP-4471"]
+
+
+def test_findings_digest_empty(service) -> None:
+    ctx, sessions, tools = service
+    llm = ScriptedLLM([ChatTurn(content="ok")])
+    _svc(tools, sessions, llm, memory=ctx.memory).respond(None, "hi")
+    assert "No agent findings yet" in llm.received[0][1]["content"]
 
 
 def test_max_steps_exhausted(service) -> None:

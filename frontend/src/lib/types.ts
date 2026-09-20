@@ -145,5 +145,4 @@ export interface ModuleCopilotScript {
   opening: string;
   openingCitations?: Citation[];
   suggestions: string[];
-  answers: Record<string, { text: string; citations?: Citation[] }>;
 }
