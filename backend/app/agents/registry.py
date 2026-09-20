@@ -24,9 +24,11 @@ class AgentRegistry:
 
 def default_registry() -> AgentRegistry:
     from app.agents.apar.agent import APARAgent
+    from app.agents.deals.agent import DealsAgent
     from app.agents.recon.agent import CashReconAgent
 
     registry = AgentRegistry()
     registry.register(CashReconAgent)
     registry.register(APARAgent)
+    registry.register(DealsAgent)
     return registry

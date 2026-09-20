@@ -33,6 +33,22 @@ OPERATING_ACCT = "acct:****0042"
 _UMLAUTS = str.maketrans(
     {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss", "Ä": "Ae", "Ö": "Oe", "Ü": "Ue"}
 )
+# Look-alike domains bolt a generic word onto the real name: cloudnimbus-billing.co
+_GENERIC_SUFFIXES = {
+    "billing",
+    "payments",
+    "pay",
+    "invoices",
+    "invoice",
+    "accounts",
+    "ar",
+    "ap",
+    "finance",
+    "remit",
+    "support",
+    "secure",
+    "online",
+}
 _STOP = {"INC", "GMBH", "LLP", "LLC", "CO", "CORP", "GROUP", "GRP", "THE", "AND", "OF", "LTD"}
 _REMIT_REF = re.compile(r"\b(?:REMIT|Payment reference:)\s*#?\s*(\d{5,})", re.I)
 _CHECK = re.compile(r"check\s*#\s*(\d{3,6})", re.I)
@@ -74,11 +90,24 @@ def match_party(text: str, parties: dict[str, str]) -> tuple[str | None, int]:
 
 
 def match_party_by_domain(domain: str, parties: dict[str, str]) -> str | None:
-    """'cloudnimbus-billing.co' -> CloudNimbus: first name token is a prefix of the domain."""
+    """'cloudnimbus-billing.co' -> CloudNimbus; 'crescenthosp.com' -> Crescent Hospitality.
+
+    The domain label must start with the party's first name token, and whatever
+    follows must be short (an abbreviation like 'mfg') or start with a later name
+    token, so 'harborviewlogistics.com' never matches 'Harbor Insurance Co'.
+    """
     d = domain.lower().split(".")[0].replace("-", "")
     for pid, name in parties.items():
-        nt = _name_tokens(name)
-        if nt and d.startswith(nt[0].lower()):
+        nt = [t.lower() for t in _name_tokens(name)]
+        if not nt or not d.startswith(nt[0]):
+            continue
+        rest = d[len(nt[0]) :]
+        if (
+            not rest
+            or len(rest) <= 4
+            or any(rest.startswith(t[:3]) for t in nt[1:])
+            or rest in _GENERIC_SUFFIXES
+        ):
             return pid
     return None
 
@@ -527,7 +556,7 @@ def _seed_emails(g: MemoryGraph, emails: list[Email]) -> None:
 
         parties: dict[str, dict] = {}
         if not internal:
-            vid = match_party_by_domain(m.from_domain, vendors)
+            vid = vendor_domains.get(m.from_domain) or match_party_by_domain(m.from_domain, vendors)
             cid = match_party_by_domain(m.from_domain, customers)
             if vid:
                 parties[vid] = dict(

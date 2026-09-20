@@ -1,6 +1,16 @@
 import type { ModuleCopilotScript, ModuleKey } from "@/lib/types";
 
 export const COPILOT_SCRIPTS: Record<ModuleKey, ModuleCopilotScript> = {
+  deals: {
+    opening:
+      "Deals view. The Deals agent reads the inbox, separates sales opportunities from operations mail, sizes each one and checks the customer's payment record before drafting a reply.",
+    openingCitations: [],
+    suggestions: [
+      "Which deals have a credit risk?",
+      "What is the pipeline estimate?",
+      "Why is the Vantage email not a deal?",
+    ],
+  },
   "command-center": {
     opening:
       "I'm Finertia. I answer from the shared memory graph and cite the bank lines, journal entries, invoices and emails I used. Ask about any number, or ask me to run the reconciliation.",

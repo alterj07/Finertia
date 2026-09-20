@@ -27,7 +27,7 @@ def test_seed_counts(graph: MemoryGraph) -> None:
     s = graph.stats()
     assert s["node_types"]["invoice"] == 33  # 34 rows, INV-7781 merged with INV7781
     assert s["node_types"]["bank_txn"] == 55
-    assert s["node_types"]["email"] == 12
+    assert s["node_types"]["email"] == 19
     assert s["node_types"]["scan"] == 6
     assert s["node_types"]["vendor"] == 12
     assert s["node_types"]["customer"] == 10
@@ -175,7 +175,7 @@ def test_graph_view_shape(graph: MemoryGraph) -> None:
     )
     view = graph_view(graph)
     ids = {n["id"] for n in view["nodes"]}
-    assert sum(n.get("isAgent", False) for n in view["nodes"]) == 6
+    assert sum(n.get("isAgent", False) for n in view["nodes"]) == 7
     assert {"V003", "C007", "acct:****0042", "finding:FX_DIFFERENCE:BP-4471"} <= ids
     for e in view["edges"]:
         assert e["source"] in ids and e["target"] in ids

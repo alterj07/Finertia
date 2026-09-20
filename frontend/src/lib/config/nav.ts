@@ -16,6 +16,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "close", label: "Close", href: "/close" },
   { key: "forecast", label: "Forecast", href: "/forecast" },
   { key: "audit", label: "Audit & Controls", href: "/audit" },
+  { key: "deals", label: "Deals", href: "/deals", needsAttention: true },
   { key: "graph", label: "Data Graph", href: "/graph" },
 ];
 
@@ -27,5 +28,6 @@ export const MODULE_TITLES: Record<ModuleKey, string> = {
   close: "Close",
   forecast: "Forecast",
   audit: "Audit & Controls",
+  deals: "Deals",
   graph: "Data Graph",
 };
