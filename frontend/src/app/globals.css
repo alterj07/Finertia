@@ -28,7 +28,13 @@
   --forecast: #6e5a9e;
   --forecast-soft: #e8e4f1;
 
-  --rail-bg: #12181b;
+  --rail-bg: #eeebe3;
+  --rail-fg: var(--ink);
+  --rail-fg-soft: var(--ink-soft);
+  --rail-fg-faint: rgba(23, 27, 31, 0.45);
+  --rail-hover: rgba(23, 27, 31, 0.05);
+  --rail-active: rgba(23, 27, 31, 0.09);
+  --rail-border: var(--rule);
 
   --shadow-color: 23 27 31;
 }
@@ -53,6 +59,12 @@
   --forecast-soft: #241f33;
 
   --rail-bg: #0c1012;
+  --rail-fg: #ffffff;
+  --rail-fg-soft: rgba(255, 255, 255, 0.7);
+  --rail-fg-faint: rgba(255, 255, 255, 0.45);
+  --rail-hover: rgba(255, 255, 255, 0.04);
+  --rail-active: rgba(255, 255, 255, 0.08);
+  --rail-border: rgba(255, 255, 255, 0.06);
 }
 
 @theme inline {
@@ -75,6 +87,12 @@
   --color-forecast-soft: var(--forecast-soft);
 
   --color-rail-bg: var(--rail-bg);
+  --color-rail-fg: var(--rail-fg);
+  --color-rail-fg-soft: var(--rail-fg-soft);
+  --color-rail-fg-faint: var(--rail-fg-faint);
+  --color-rail-hover: var(--rail-hover);
+  --color-rail-active: var(--rail-active);
+  --color-rail-border: var(--rail-border);
 
   --color-background: var(--paper);
   --color-foreground: var(--ink);
@@ -131,6 +149,12 @@
     --forecast-soft: #241f33;
 
     --rail-bg: #0c1012;
+    --rail-fg: #ffffff;
+    --rail-fg-soft: rgba(255, 255, 255, 0.7);
+    --rail-fg-faint: rgba(255, 255, 255, 0.45);
+    --rail-hover: rgba(255, 255, 255, 0.04);
+    --rail-active: rgba(255, 255, 255, 0.08);
+    --rail-border: rgba(255, 255, 255, 0.06);
   }
 }
 

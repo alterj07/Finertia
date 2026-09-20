@@ -50,7 +50,7 @@ export function LeftRail() {
           }
         }}
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[240px] shrink-0 flex-col overflow-hidden border-r border-white/[0.06] bg-[var(--rail-bg)] transition-[transform,width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none min-[880px]:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-[240px] shrink-0 flex-col overflow-hidden border-r border-rail-border bg-rail-bg transition-[transform,width,color,background-color,border-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none min-[880px]:translate-x-0",
           expanded ? "min-[880px]:w-60" : "min-[880px]:w-16",
           leftRailOpen ? "translate-x-0" : "-translate-x-full",
         )}
@@ -61,12 +61,12 @@ export function LeftRail() {
             <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
           </span>
           <div className={fade}>
-            <div className="font-serif text-[21px] font-semibold leading-none text-white">Finertia</div>
+            <div className="font-serif text-[21px] font-semibold leading-none text-rail-fg">Finertia</div>
           </div>
           <button
             type="button"
             onClick={() => setLeftRailOpen(false)}
-            className="ml-auto text-white/50 hover:text-white min-[880px]:hidden"
+            className="ml-auto text-rail-fg-faint hover:text-rail-fg min-[880px]:hidden"
             aria-label="Close navigation"
           >
             <X size={16} />
@@ -94,8 +94,8 @@ export function LeftRail() {
                       e.currentTarget.blur();
                     }}
                     className={cn(
-                      "flex h-10 items-center gap-3 rounded-md text-sm text-white/70 transition-colors hover:bg-white/[0.04] hover:text-white",
-                      active && "bg-white/[0.08] text-white",
+                      "flex h-10 items-center gap-3 rounded-md text-sm text-rail-fg-soft transition-colors hover:bg-rail-hover hover:text-rail-fg",
+                      active && "bg-rail-active text-rail-fg",
                     )}
                   >
                     <span className="relative flex h-10 w-10 shrink-0 items-center justify-center">
@@ -110,7 +110,7 @@ export function LeftRail() {
                     <span className={cn("flex flex-1 items-center gap-2", fade)}>
                       <span className="flex-1 truncate">{item.label}</span>
                       {typeof item.count === "number" && (
-                        <span className="font-mono text-2xs text-white/50">{item.count}</span>
+                        <span className="font-mono text-2xs text-rail-fg-faint">{item.count}</span>
                       )}
                     </span>
                   </Link>
