@@ -19,6 +19,7 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", LAB_DATA))
 def client(tmp_path, monkeypatch) -> TestClient:
     monkeypatch.setattr(settings, "memory_graph_path", tmp_path / "memory_graph.json")
     monkeypatch.setattr(settings, "feedback_path", tmp_path / "feedback.json")
+    monkeypatch.setattr(settings, "chat_sessions_path", tmp_path / "chat_sessions.json")
     monkeypatch.setattr(settings, "data_dir", DATA_DIR)
     monkeypatch.setattr(settings, "openai_api_key", None)
     with TestClient(create_app()) as c:

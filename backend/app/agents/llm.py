@@ -3,10 +3,24 @@ plugs in here for the orchestrator's planning and, later, explaining findings
 in natural language or drafting adjustments from chatbot feedback.
 """
 
+import json
 from typing import TYPE_CHECKING, Any, Protocol
+
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from app.config import Settings
+
+
+class ToolCall(BaseModel):
+    id: str
+    name: str
+    arguments: dict[str, Any] = {}
+
+
+class ChatTurn(BaseModel):
+    content: str | None = None
+    tool_calls: list[ToolCall] = []
 
 
 class LLMProvider(Protocol):
@@ -15,6 +29,10 @@ class LLMProvider(Protocol):
     def complete(
         self, prompt: str, *, system: str | None = None, json_mode: bool = False, **kw: Any
     ) -> str: ...
+
+    def chat(
+        self, messages: list[dict], tools: list[dict] | None = None, **kw: Any
+    ) -> ChatTurn: ...
 
 
 class NullLLM:
@@ -26,6 +44,14 @@ class NullLLM:
     def complete(
         self, prompt: str, *, system: str | None = None, json_mode: bool = False, **kw: Any
     ) -> str:
+        raise NotImplementedError(
+            "No LLM provider configured. Set OPENAI_API_KEY or wire a real "
+            "LLMProvider into AgentContext to enable LLM-assisted features."
+        )
+
+    def chat(
+        self, messages: list[dict], tools: list[dict] | None = None, **kw: Any
+    ) -> ChatTurn:
         raise NotImplementedError(
             "No LLM provider configured. Set OPENAI_API_KEY or wire a real "
             "LLMProvider into AgentContext to enable LLM-assisted features."
@@ -55,6 +81,26 @@ class OpenAIProvider:
             response_format={"type": "json_object"} if json_mode else self._not_given,
         )
         return resp.choices[0].message.content or ""
+
+    def chat(
+        self, messages: list[dict], tools: list[dict] | None = None, **kw: Any
+    ) -> ChatTurn:
+        resp = self._client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            tools=tools or self._not_given,
+            tool_choice="auto" if tools else self._not_given,
+            temperature=0,
+        )
+        msg = resp.choices[0].message
+        calls = []
+        for tc in msg.tool_calls or []:
+            try:
+                args = json.loads(tc.function.arguments or "{}")
+            except json.JSONDecodeError:
+                args = {"_raw": tc.function.arguments}
+            calls.append(ToolCall(id=tc.id, name=tc.function.name, arguments=args))
+        return ChatTurn(content=msg.content, tool_calls=calls)
 
 
 def build_llm(settings: "Settings") -> LLMProvider:

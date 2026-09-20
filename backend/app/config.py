@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     data_dir: Path = Path("../data")
     memory_graph_path: Path = Path("./var/memory_graph.json")
     feedback_path: Path = Path("./var/feedback.json")
+    chat_sessions_path: Path = Path("./var/chat_sessions.json")
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4o-mini"
 
