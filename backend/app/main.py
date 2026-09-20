@@ -11,8 +11,6 @@ from app.agents.llm import build_llm
 from app.agents.registry import default_registry
 from app.agents.warmup import AgentWarmup
 from app.api.router import api_router
-from app.auth.service import AuthService
-from app.auth.store import ElasticUserStore, LocalUserStore
 from app.chat.sessions import ChatSessionStore
 from app.config import settings
 from app.data.es_lake import ElasticDataLake
@@ -104,15 +102,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if settings.auto_run_agents and app.state.lake is not None:
         app.state.warmup.start()
     app.state.chat_sessions = ChatSessionStore(settings.chat_sessions_path)
-    app.state.auth = AuthService(
-        ElasticUserStore(store) if backend == "elastic" else LocalUserStore(settings.users_path),
-        settings,
-    )
-    app.state.auth.seed_admin()
-    if settings.auth_required and (
-        settings.auth_secret.get_secret_value() == "dev-secret-change-me"
-    ):
-        log.warning("AUTH_SECRET is unset — using the built-in dev secret")
     yield
 
 

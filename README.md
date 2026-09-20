@@ -32,7 +32,6 @@ the sample data lake (`data/`).
 - [Flight Simulator](#flight-simulator)
 - [Data uploads](#data-uploads)
 - [Elasticsearch backend](#elasticsearch-backend)
-- [Authentication](#authentication)
 - [Frontend](#frontend)
 - [API reference](#api-reference)
 - [Configuration](#configuration)
@@ -47,7 +46,7 @@ Prerequisites: Node.js 24+ / npm 12+, Python 3.14+ managed via
 ```bash
 # backend
 cd backend
-cp .env.example .env              # then set DEMO_ADMIN_PASSWORD (and OPENAI_API_KEY for LLM features)
+cp .env.example .env              # then set OPENAI_API_KEY for LLM features
 uv sync
 uv run uvicorn app.main:app --reload --port 8000
 
@@ -63,9 +62,6 @@ local JSON files under `backend/var/`. Without `OPENAI_API_KEY` the
 orchestrator uses its deterministic planner, the deals agent shows template
 drafts, the flight simulator uses rules, and the chatbot returns 503.
 
-Sign in at `/login` with the seeded `admin` account (password =
-`DEMO_ADMIN_PASSWORD`) or create an account at `/signup`.
-
 ## Repository layout
 
 ```
@@ -76,10 +72,10 @@ backend/
   Dockerfile                  uv-based image; bundles data/
   pyproject.toml              deps: fastapi, elasticsearch, openai, pyarrow, pyjwt, python-multipart
   scripts/ocr_scans.py        offline OCR of scanned invoices -> data/scanned_invoices/ocr.json
-  tests/                      pytest suite (agents, memory, chat, auth, uploads, dashboard, ES)
+  tests/                      pytest suite (agents, memory, chat, uploads, dashboard, ES)
   var/                        local-mode state: memory_graph.json, feedback.json, chat_sessions.json, users.json
   app/
-    main.py                   lifespan: storage selection, lake, memory, LLM, registry, warm-up, auth
+    main.py                   lifespan: storage selection, lake, memory, LLM, registry, warm-up
     config.py                 pydantic-settings (see Configuration)
     data/
       models.py               BankTxn, GLLine, Invoice, Email
@@ -115,18 +111,14 @@ backend/
     dashboard/
       common.py               kpi/money/finding helpers; "N/A" for anything unsourced
       screens.py              build_<screen>() — lake+memory -> the frontend's TS shapes
-    auth/
-      models.py, service.py   User, signup/login, scrypt hashing, JWT issue/verify, admin seeding
-      store.py                ElasticUserStore / LocalUserStore
-      deps.py                 current_user dependency; gates every route but health + auth
     api/                      one router per feature (see API reference)
 frontend/
   src/app/                    App Router pages: / financial-operations flight-simulator graph chat
-                              login signup; payables receivables reconciliation close deals forecast
+                              payables receivables reconciliation close deals forecast
                               audit redirect into Financial Operations tabs (payables/invoices/[id]
                               and payables/auto-paid remain as drill-downs)
   src/components/
-    shell/                    app-shell (auth gate), left-rail, topbar, copilot-rail
+    shell/                    app-shell, left-rail, topbar, copilot-rail
     screens/                  command-center, financial-operations (tabbed), deals, flight-simulator, graph
     graph/                    graph-canvas (d3-force), detail panel, legend, agent-runner, data-upload
     shared/                   kpi-row, ledger, data-table, section-block, dashboard-gate, status-tag,
@@ -135,7 +127,7 @@ frontend/
   src/lib/                    api.ts (apiFetch + typed helpers), types.ts, config/nav.ts,
                               config/copilot.ts, use-dashboard.ts, use-agent-status.ts,
                               financial-ops.ts (tab row builders), graph-utils.ts
-  src/store/                  zustand: app-store (nav), auth-store, copilot-store, highlight-store
+  src/store/                  zustand: app-store (nav), copilot-store, highlight-store
 ```
 
 ## Data lake
@@ -423,28 +415,6 @@ In elastic mode `MemoryGraph` runs with no JSON path: `attach_sync` loads the
 persisted findings/edges/nodes at startup (backfilling anything ES missed) and
 `graph.search()` queries `memory-nodes` with a local-BM25 fallback.
 
-## Authentication
-
-Every API route except `/api/health` and `/api/auth/*` requires a
-`Authorization: Bearer <jwt>` header. Accounts are email + password (login
-accepts email or username), stored in the `users` index (`var/users.json` in
-local mode) as scrypt hashes with per-user salts. All accounts share one
-workspace — data, memory graph and findings are common; chat history is per
-user.
-
-- `POST /api/auth/signup {email, password, name}` -> 201 `{token, user}`
-- `POST /api/auth/login {identifier, password}` -> `{token, user}`
-- `GET /api/auth/me`
-- Demo admin (`DEMO_ADMIN_USERNAME`, default `admin`) is seeded at startup from
-  `DEMO_ADMIN_PASSWORD`. It is **required** — nothing is seeded if unset, and
-  the value must never be committed. If the stored hash does not match the
-  configured password it is rehashed, so rotating the env var rotates the
-  password.
-- Set `AUTH_SECRET` (32+ random bytes) in production; tokens last
-  `AUTH_TOKEN_TTL_HOURS` (default 168). `AUTH_REQUIRED=false` disables the gate.
-
-Frontend: `auth-store` persists the token, `apiFetch` injects it and redirects
-to `/login` on 401, `AppShell` gates every page, and the topbar has sign-out.
 
 ## Frontend
 
@@ -484,7 +454,6 @@ Screens (`components/screens/`):
 | `/flight-simulator` | Flight Simulator | what-if levers over the forecast + LLM/rules verdict |
 | `/graph` | Data Graph | force-directed memory graph, legend, detail panel, agent runner, uploads |
 | `/chat` | Chat | full-page copilot with sessions |
-| `/login`, `/signup` | Auth | email/password |
 
 Data Graph details: hover focus lights up a node's connections and fades the
 rest (driven by CSS data attributes, frozen while dragging); clicking opens
@@ -493,13 +462,11 @@ chatbot's mentioned/cited nodes are selected and zoomed into view.
 
 ## API reference
 
-All routes are under `/api`. Everything except health and auth needs a bearer token.
+All routes are under `/api`.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/health` | liveness |
-| POST | `/auth/signup`, `/auth/login` | accounts -> `{token, user}` |
-| GET | `/auth/me` | current user |
 | GET | `/agents` | registered agent specs |
 | GET | `/orchestrator/brief?request=` | memory brief for a request |
 | GET | `/orchestrator/status` | warm-up state |
@@ -534,11 +501,6 @@ Backend (`backend/.env`, all optional unless noted):
 | `OPENAI_MODEL` | `gpt-4o-mini` | model for all LLM calls |
 | `AUTO_RUN_AGENTS` | `true` | run the orchestrator on cold start |
 | `AUTO_RUN_REQUEST` | "Close the books for Q1: ..." | the request the warm-up runs |
-| `AUTH_REQUIRED` | `true` | bearer-token gate |
-| `AUTH_SECRET` | dev secret (warns) | JWT signing key — **set in production** |
-| `AUTH_TOKEN_TTL_HOURS` | `168` | token lifetime |
-| `DEMO_ADMIN_USERNAME` | `admin` | seeded admin username |
-| `DEMO_ADMIN_PASSWORD` | — | **required** to seed the admin; never commit it |
 | `CORS_ORIGINS` | `http://localhost:3000` | comma-separated; localhost is always allowed |
 
 Frontend (`frontend/.env.local`): `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).
@@ -559,7 +521,7 @@ npm run build
 Test coverage by area: loaders and lake, memory graph + seeding, signals,
 recon/AP-AR/deals agents, registry + orchestrator (LLM and fallback), warm-up,
 feedback, chat tools/service/API, dashboard builders, uploads (classification,
-zips, mixed-batch rejection), auth (signup/login/gating), ES ingest unit tests
+zips, mixed-batch rejection), ES ingest unit tests
 and a live ES integration suite under the `test-` prefix.
 
 ## Deploy
@@ -569,15 +531,13 @@ The backend ships as a Docker image built from the repo root (it bundles
 
 - `backend/Dockerfile` — uv-based, `uvicorn app.main:app` on `$PORT` (default 8000)
 - `render.yaml` — Render blueprint: web service `finertia-api`, health check
-  `/api/health`, generates `AUTH_SECRET` for new blueprints
+  `/api/health`
 
 Steps:
 
 1. Push the repo and create a new **Blueprint** on Render pointing at `render.yaml`.
 2. Set env vars on the Render service:
    - `OPENAI_API_KEY` — chatbot, LLM planning, drafts, simulator
-   - `DEMO_ADMIN_PASSWORD` — admin login (required)
-   - `AUTH_SECRET` — add manually on an existing service
    - `ES_URL` / `ES_API_KEY` — Elastic Cloud (otherwise the service runs in local mode)
    - `CORS_ORIGINS` — `https://<your-vercel-app>.vercel.app`
 3. Deploy the frontend on Vercel with `NEXT_PUBLIC_API_URL=https://<render-service>.onrender.com`.

@@ -1,10 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.agents.base import AgentContext
 from app.agents.orchestrator import Orchestrator
-from app.auth.deps import current_user
-from app.auth.models import User
 from app.chat.models import ChatResponse, ChatSession
 from app.chat.service import ChatService
 from app.chat.tools import build_tools
@@ -48,19 +46,10 @@ def _service(request: Request) -> ChatService:
 
 
 @router.post("")
-def post_chat(
-    req: ChatRequest, request: Request, user: User = Depends(current_user)
-) -> ChatResponse:
+def post_chat(req: ChatRequest, request: Request) -> ChatResponse:
     service = _service(request)
-    session_id = req.session_id
-    if session_id:
-        existing = request.app.state.chat_sessions.get(session_id)
-        if existing is not None and existing.user_id and existing.user_id != user.id:
-            session_id = None
     try:
-        return service.respond(
-            session_id, req.message, context=req.context, user_id=user.id
-        )
+        return service.respond(req.session_id, req.message, context=req.context)
     except Exception as exc:
         raise HTTPException(
             status_code=502, detail=f"LLM provider error: {type(exc).__name__}"
@@ -68,30 +57,20 @@ def post_chat(
 
 
 @router.get("/sessions")
-def list_sessions(request: Request, user: User = Depends(current_user)) -> list[dict]:
-    return [
-        s
-        for s in request.app.state.chat_sessions.list()
-        if not s["user_id"] or s["user_id"] == user.id
-    ]
+def list_sessions(request: Request) -> list[dict]:
+    return request.app.state.chat_sessions.list()
 
 
 @router.get("/sessions/{session_id}")
-def get_session(
-    session_id: str, request: Request, user: User = Depends(current_user)
-) -> ChatSession:
+def get_session(session_id: str, request: Request) -> ChatSession:
     session = request.app.state.chat_sessions.get(session_id)
-    if session is None or (session.user_id and session.user_id != user.id):
+    if session is None:
         raise HTTPException(status_code=404, detail="session not found")
     return session
 
 
 @router.delete("/sessions/{session_id}")
-def delete_session(
-    session_id: str, request: Request, user: User = Depends(current_user)
-) -> dict:
-    session = request.app.state.chat_sessions.get(session_id)
-    if session is None or (session.user_id and session.user_id != user.id):
+def delete_session(session_id: str, request: Request) -> dict:
+    if not request.app.state.chat_sessions.delete(session_id):
         raise HTTPException(status_code=404, detail="session not found")
-    request.app.state.chat_sessions.delete(session_id)
     return {"status": "ok"}
