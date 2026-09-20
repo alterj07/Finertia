@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     auth_secret: SecretStr = SecretStr("dev-secret-change-me")
     auth_token_ttl_hours: int = 168
     demo_admin_username: str = "admin"
-    demo_admin_password: SecretStr | None = None
+    demo_admin_password: SecretStr = SecretStr("password")
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4o-mini"
     storage_backend: Literal["local", "elastic"] = "elastic"

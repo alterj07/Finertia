@@ -84,7 +84,7 @@ function LoginForm() {
           </Link>
         </p>
         <p className="mt-3 text-center font-mono text-2xs text-ink-soft">
-          Demo account: admin (password provided separately)
+          Demo account: admin / password
         </p>
       </div>
     </div>

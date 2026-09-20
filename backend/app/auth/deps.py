@@ -21,8 +21,6 @@ def current_user(request: Request) -> User:
         user = auth.store.find(settings.demo_admin_username)
         if user is None:
             user = auth.seed_admin()
-        if user is None:
-            raise HTTPException(status_code=503, detail="no admin user")
         return user
     header = request.headers.get("authorization", "")
     scheme, _, token = header.partition(" ")

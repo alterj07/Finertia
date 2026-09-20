@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import SecretStr
 
 from app.agents.base import AgentContext
 from app.agents.feedback import FeedbackStore
@@ -22,17 +21,13 @@ def client(tmp_path, monkeypatch) -> TestClient:
     monkeypatch.setattr(settings, "feedback_path", tmp_path / "feedback.json")
     monkeypatch.setattr(settings, "chat_sessions_path", tmp_path / "chat_sessions.json")
     monkeypatch.setattr(settings, "users_path", tmp_path / "users.json")
-    monkeypatch.setattr(
-        settings, "demo_admin_password", SecretStr("test-admin-pw")
-    )
     monkeypatch.setattr(settings, "data_dir", DATA_DIR)
     monkeypatch.setattr(settings, "openai_api_key", None)
     monkeypatch.setattr(settings, "storage_backend", "local")
     monkeypatch.setattr(settings, "auto_run_agents", False)
     with TestClient(create_app()) as c:
         token = c.post(
-            "/api/auth/login",
-            json={"identifier": "admin", "password": "test-admin-pw"},
+            "/api/auth/login", json={"identifier": "admin", "password": "password"}
         ).json()["token"]
         c.headers["Authorization"] = f"Bearer {token}"
         yield c
