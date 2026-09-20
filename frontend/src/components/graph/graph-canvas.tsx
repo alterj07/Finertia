@@ -13,7 +13,8 @@ import {
 import { drag as d3drag } from "d3-drag";
 import { select as d3select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity, type ZoomTransform } from "d3-zoom";
-import { AGGREGATE_DATASET, EXPANSIONS } from "@/lib/mock/graph";
+import { fetchGraphView } from "@/lib/api";
+import type { GraphView } from "@/lib/types";
 import {
   GROUP_COLOR,
   GROUP_LABEL,
@@ -54,6 +55,26 @@ export function GraphCanvas() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
+  const [view, setView] = useState<GraphView | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const expansionsRef = useRef<GraphView["expansions"]>({});
+
+  // ---- Load the live memory graph --------------------------------------
+  useEffect(() => {
+    let cancelled = false;
+    fetchGraphView()
+      .then((data) => {
+        if (cancelled) return;
+        expansionsRef.current = data.expansions;
+        setView(data);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load graph");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const scheduleRender = useCallback(() => {
     if (rafRef.current != null) return;
@@ -79,17 +100,17 @@ export function GraphCanvas() {
     );
   }, []);
 
-  // ---- Setup: build simulation once ----------------------------------
+  // ---- Setup: build simulation once the data is in --------------------
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !view) return;
     reducedMotionRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 560;
 
-    const nodes: SimNode[] = AGGREGATE_DATASET.nodes.map((n) => ({ ...n }));
-    const links: SimLink[] = AGGREGATE_DATASET.edges.map((e) => ({
+    const nodes: SimNode[] = view.nodes.map((n) => ({ ...n }));
+    const links: SimLink[] = view.edges.map((e) => ({
       source: e.source,
       target: e.target,
     }));
@@ -131,7 +152,7 @@ export function GraphCanvas() {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [view]);
 
   // ---- Setup: zoom / pan -----------------------------------------------
   useEffect(() => {
@@ -195,7 +216,7 @@ export function GraphCanvas() {
   const expandNode = useCallback(
     (nodeId: string) => {
       if (expandedIds.has(nodeId)) return;
-      const expansion = EXPANSIONS[nodeId];
+      const expansion = expansionsRef.current[nodeId];
       if (!expansion) return;
 
       const existingIds = new Set(nodesRef.current.map((n) => n.id));
@@ -416,7 +437,18 @@ export function GraphCanvas() {
           </g>
         </svg>
 
-        {!hasInteracted && <GraphHint />}
+        {loadError && (
+          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-ink-soft">
+            Could not load the memory graph from the backend ({loadError}). Is the API running on
+            port 8000?
+          </div>
+        )}
+        {!view && !loadError && (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-ink-soft">
+            Loading memory graph…
+          </div>
+        )}
+        {view && !hasInteracted && <GraphHint />}
         <GraphLegend />
         {selectedNode && (
           <GraphDetailPanel

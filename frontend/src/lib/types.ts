@@ -105,6 +105,10 @@ export interface GraphNodeData {
   lastTouched: string;
   aggregate?: boolean;
   children?: string[];
+  /** One-line description from the memory graph. */
+  summary?: string;
+  /** Selected properties of the underlying memory node. */
+  props?: Record<string, string | number | boolean>;
 }
 
 export interface GraphEdgeData {
@@ -115,6 +119,12 @@ export interface GraphEdgeData {
 export interface GraphDataset {
   nodes: GraphNodeData[];
   edges: GraphEdgeData[];
+}
+
+/** Shape of GET /api/memory/graph/view: the live memory graph, aggregated. */
+export interface GraphView extends GraphDataset {
+  expansions: Record<string, GraphDataset>;
+  stats: { documents: number; findings: number };
 }
 
 // ---- Copilot ----------------------------------------------------------

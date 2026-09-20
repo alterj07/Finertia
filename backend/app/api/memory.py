@@ -16,6 +16,14 @@ def get_graph(
     return request.app.state.memory.to_dict(types=types, period=period)
 
 
+@router.get("/graph/view")
+def get_graph_view(request: Request) -> dict:
+    """The graph shaped for the Data Graph screen: aggregates, edges, expansions."""
+    from app.memory.view import graph_view
+
+    return graph_view(request.app.state.memory)
+
+
 @router.get("/stats")
 def get_stats(request: Request) -> dict:
     return request.app.state.memory.stats()

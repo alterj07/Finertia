@@ -142,3 +142,47 @@ def test_api_endpoints(client) -> None:
     assert r.status_code == 200
     assert client.get("/api/memory/findings", params={"code": "VENDOR_BANK_CHANGE"}).json()
     assert client.get("/api/memory/search", params={"q": "First Coastal 9921"}).json()
+
+
+def test_reload_then_reseed_matches_fresh(lake: DataLake, tmp_path: Path) -> None:
+    path = tmp_path / "g.json"
+    fresh = MemoryGraph(path).seed(lake)
+    fresh.remember(
+        Finding(
+            agent="AP/AR", code="X", key="1", title="t", entities=["INV7781"], evidence=["BK00037"]
+        )
+    )
+    stats = fresh.stats()
+    again = MemoryGraph(path).seed(lake)  # loads the saved file, then re-seeds on top
+    assert again.stats() == stats
+    assert again.nodes["INV-7781"].props["variants"] == ["INV-7781", "INV7781"]
+    assert [d["id"] for d in again.precedents("V009")["documents"]] == ["SCG-1102", "SCG-1187"]
+    assert again.edge("finding:X:1", "INVOLVES", "INV-7781")
+
+
+def test_graph_view_shape(graph: MemoryGraph) -> None:
+    from app.memory.view import graph_view
+
+    graph.remember(
+        Finding(
+            agent="Cash & Reconciliation",
+            code="FX_DIFFERENCE",
+            key="BP-4471",
+            title="fx",
+            entities=["V011", "BP-4471"],
+            evidence=["BK00049", "JE-1061"],
+        )
+    )
+    view = graph_view(graph)
+    ids = {n["id"] for n in view["nodes"]}
+    assert sum(n.get("isAgent", False) for n in view["nodes"]) == 6
+    assert {"V003", "C007", "acct:****0042", "finding:FX_DIFFERENCE:BP-4471"} <= ids
+    for e in view["edges"]:
+        assert e["source"] in ids and e["target"] in ids
+    assert {"source": "finding:FX_DIFFERENCE:BP-4471", "target": "V011"} in view["edges"]
+    v003 = view["expansions"]["V003"]
+    exp_ids = {n["id"] for n in v003["nodes"]} | ids
+    assert "INV-7781" in exp_ids and "BK00041" in exp_ids and "001_brightline_resend.eml" in exp_ids
+    for e in v003["edges"]:
+        assert e["source"] in exp_ids and e["target"] in exp_ids, e
+    assert all(n["group"] == "payables" for n in view["nodes"] if n["id"].startswith("V0"))

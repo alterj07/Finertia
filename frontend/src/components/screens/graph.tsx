@@ -8,8 +8,10 @@ export function GraphScreen() {
     <div>
       <SectionBlock title="Data graph">
         <p className="mb-4 max-w-[70ch] text-sm leading-relaxed text-ink-soft">
-          One node per vendor, customer, bank account, journal batch, model, or evidence bundle —
-          aggregated for legibility. Click a node to expand it into the documents underneath.
+          The shared memory graph, live from the backend: one node per vendor, customer, bank
+          feed, journal batch, and learned pattern, plus every finding the agents have written.
+          Click a node to expand it into the invoices, journal entries, bank lines, emails and
+          scans underneath.
         </p>
         <GraphCanvas />
       </SectionBlock>

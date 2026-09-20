@@ -100,8 +100,13 @@ def _days(a: date, b: date) -> int:
 
 # -------------------------------------------------------------------- seed
 def seed_from_lake(g: MemoryGraph, lake: DataLake) -> None:
-    # Rebuild the base layer from scratch; agent-written edges are kept.
-    g.edges = [e for e in g.edges if e.agent != INGEST]
+    # Rebuild the base layer from scratch. Agent-written findings and their edges
+    # are kept; every other node is recreated from the data so a reload never
+    # drifts (duplicate variants, missing links) from a fresh seed.
+    kept_edges = [e for e in g.edges if e.agent != INGEST]
+    kept_nodes = {n.id: n for n in g.nodes.values() if n.type == "finding"}
+    g.edges = []
+    g.nodes = kept_nodes
     g.aliases.clear()
     g.upsert_node(COMPANY, type="company", name="Northwind Robotics Inc.", domain=COMPANY_DOMAIN)
     g.upsert_node(OPERATING_ACCT, type="bank_account", last4="0042", bank="Operating")
@@ -114,6 +119,12 @@ def seed_from_lake(g: MemoryGraph, lake: DataLake) -> None:
     _seed_scans(g, lake)
     _derive_balances(g)
     _derive_patterns(g)
+    # Re-attach what the agents wrote: endpoints now resolve to seeded nodes.
+    for e in kept_edges:
+        e.src, e.dst = g.resolve(e.src), g.resolve(e.dst)
+        g.upsert_node(e.src)
+        g.upsert_node(e.dst)
+    g.edges.extend(kept_edges)
 
 
 # ---------------------------------------------------------------- invoices

@@ -84,9 +84,7 @@ def test_fallback_scoring_two_agents() -> None:
 
 
 def test_orchestrator_run_end_to_end(ctx: AgentContext) -> None:
-    result = Orchestrator(default_registry(), NullLLM()).run(
-        ctx, "close the books for Q1"
-    )
+    result = Orchestrator(default_registry(), NullLLM()).run(ctx, "close the books for Q1")
     assert len(result.results) == 1
     assert result.results[0].summary["difference"] == 0
     runs = ctx.memory.recall(code="ORCHESTRATION_RUN")
