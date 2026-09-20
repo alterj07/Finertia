@@ -34,6 +34,12 @@ import { GraphDetailPanel } from "@/components/graph/graph-detail-panel";
 
 type FilterId = "all" | "agents" | (typeof MODULE_GROUPS)[number];
 
+// SVG labels are capped at 24 chars; the full label stays on the node for
+// the <title> tooltip, the detail panel and chat matching.
+function shortLabel(label: string): string {
+  return label.length > 24 ? `${label.slice(0, 23)}…` : label;
+}
+
 function DeepLink({ onNode }: { onNode: (id: string) => void }) {
   const params = useSearchParams();
   const node = params.get("node");
@@ -140,7 +146,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
         const known = new Set(nodesRef.current.map((n) => n.id));
         const addedLinks: SimLink[] = newLinks
           .filter((e) => known.has(e.source) && known.has(e.target))
-          .map((e) => ({ source: e.source, target: e.target }));
+          .map((e) => ({ source: e.source, target: e.target, rel: e.rel }));
         linksRef.current = [...linksRef.current, ...addedLinks];
 
         const freshNodes = new Set(added.map((n) => n.id));
@@ -191,6 +197,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
     const links: SimLink[] = view.edges.map((e) => ({
       source: e.source,
       target: e.target,
+      rel: e.rel,
     }));
     nodesRef.current = nodes;
     linksRef.current = links;
@@ -320,7 +327,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
       );
       const newLinks: SimLink[] = expansion.edges
         .filter((e) => !existingLinkKeys.has(`${e.source}->${e.target}`))
-        .map((e) => ({ source: e.source, target: e.target }));
+        .map((e) => ({ source: e.source, target: e.target, rel: e.rel }));
       linksRef.current = [...linksRef.current, ...newLinks];
 
       setExpandedIds((prev) => new Set(prev).add(nodeId));
@@ -467,7 +474,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
     const seen = new Set<string>();
     return all
       .filter((n) => (seen.has(n.id) ? false : (seen.add(n.id), true)))
-      .map((n) => ({ id: n.id, label: n.label, isAgent: !!n.isAgent }));
+      .map((n) => ({ id: n.id, label: n.label, ref: n.ref, isAgent: !!n.isAgent }));
   }, [view]);
 
   useEffect(() => {
@@ -489,8 +496,11 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
       for (const n of chatLookup) {
         const esc = n.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const m = new RegExp(`\\b${esc}\\b`, "i").exec(text);
-        if (m) {
-          scored.push({ id: n.id, at: m.index, exact: true });
+        const mref = n.ref
+          ? new RegExp(`\\b${n.ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").exec(text)
+          : null;
+        if (m || mref) {
+          scored.push({ id: n.id, at: (m ?? mref)!.index, exact: true });
           continue;
         }
         if (n.isAgent) continue;
@@ -572,17 +582,19 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
   const selectedNode = selectedId ? (nodesSnapshot.find((n) => n.id === selectedId) ?? null) : null;
   const selectedConnections = useMemo(() => {
     if (!selectedNode) return [];
-    const ids = new Set<string>();
+    const rels = new Map<string, string | undefined>();
     for (const l of linksSnapshot) {
       const s = linkEndpointId(l.source);
       const t = linkEndpointId(l.target);
-      if (s === selectedNode.id) ids.add(t);
-      if (t === selectedNode.id) ids.add(s);
+      if (s === selectedNode.id && !rels.has(t)) rels.set(t, l.rel);
+      if (t === selectedNode.id && !rels.has(s)) rels.set(s, l.rel);
     }
-    return Array.from(ids)
-      .map((id) => nodesSnapshot.find((n) => n.id === id))
-      .filter((n): n is SimNode => !!n)
-      .map((n) => ({ id: n.id, label: n.label }));
+    const out: { id: string; label: string; rel?: string }[] = [];
+    for (const [id, rel] of rels) {
+      const n = nodesSnapshot.find((x) => x.id === id);
+      if (n) out.push({ id: n.id, label: n.label, rel });
+    }
+    return out;
   }, [selectedNode, linksSnapshot, nodesSnapshot]);
 
   return (
@@ -682,6 +694,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                     }
                     data-touched={isTouched || undefined}
                   >
+                    <title>{node.label}</title>
                     {isFresh && (
                       <circle r={radius + 6} fill="var(--gold)" opacity={0.25}>
                         <animate attributeName="r" values={`${radius + 4};${radius + 9};${radius + 4}`} dur="1.6s" repeatCount="indefinite" />
@@ -700,7 +713,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                       fill="var(--ink)"
                       className="select-none"
                     >
-                      {node.label}
+                      {shortLabel(node.label)}
                     </text>
                   </g>
                 );

@@ -179,10 +179,22 @@ def test_graph_view_shape(graph: MemoryGraph) -> None:
     assert {"V003", "C007", "acct:****0042", "finding:FX_DIFFERENCE:BP-4471"} <= ids
     for e in view["edges"]:
         assert e["source"] in ids and e["target"] in ids
-    assert {"source": "finding:FX_DIFFERENCE:BP-4471", "target": "V011"} in view["edges"]
+        assert "rel" in e
+    assert any(
+        e["source"] == "finding:FX_DIFFERENCE:BP-4471" and e["target"] == "V011"
+        for e in view["edges"]
+    )
     v003 = view["expansions"]["V003"]
     exp_ids = {n["id"] for n in v003["nodes"]} | ids
     assert "INV-7781" in exp_ids and "BK00041" in exp_ids and "001_brightline_resend.eml" in exp_ids
     for e in v003["edges"]:
         assert e["source"] in exp_ids and e["target"] in exp_ids, e
+        assert "rel" in e
     assert all(n["group"] == "payables" for n in view["nodes"] if n["id"].startswith("V0"))
+    # human-readable labels + raw reference
+    all_nodes = view["nodes"] + [n for v in view["expansions"].values() for n in v["nodes"]]
+    assert all("ref" in n for n in all_nodes)
+    inv = next(n for n in all_nodes if n["id"] == "INV-7781")
+    assert inv["label"].startswith("Invoice $") and inv["ref"] == "INV-7781"
+    finding = next(n for n in view["nodes"] if n["id"].startswith("finding:"))
+    assert "_" not in finding["label"] and finding["ref"] == "BP-4471"

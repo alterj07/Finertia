@@ -91,6 +91,8 @@ export type GraphGroup =
 export interface GraphNodeData {
   id: string;
   label: string;
+  /** Raw reference (e.g. INV-7781, ****0042) shown in the detail panel. */
+  ref?: string;
   group: GraphGroup;
   isAgent?: boolean;
   type: string;
@@ -106,6 +108,8 @@ export interface GraphNodeData {
 export interface GraphEdgeData {
   source: string;
   target: string;
+  /** Human-readable relationship phrase, e.g. "settles". */
+  rel?: string;
 }
 
 export interface GraphDataset {

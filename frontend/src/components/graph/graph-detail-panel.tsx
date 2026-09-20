@@ -10,7 +10,7 @@ export function GraphDetailPanel({
   onClose,
 }: {
   node: GraphNodeData;
-  connections: { id: string; label: string }[];
+  connections: { id: string; label: string; rel?: string }[];
   onSelectConnection: (id: string) => void;
   onClose: () => void;
 }) {
@@ -53,6 +53,12 @@ export function GraphDetailPanel({
       )}
 
       <dl className="mt-3 space-y-1.5 border-t border-rule-soft pt-3 text-xs">
+        {node.ref && node.ref !== node.label && (
+          <div className="flex justify-between gap-2">
+            <dt className="text-ink-soft">Reference</dt>
+            <dd className="font-mono text-ink">{node.ref}</dd>
+          </div>
+        )}
         <div className="flex justify-between gap-2">
           <dt className="text-ink-soft">Type</dt>
           <dd className="text-ink">{node.type}</dd>
@@ -95,7 +101,7 @@ export function GraphDetailPanel({
                   onClick={() => onSelectConnection(c.id)}
                   className="block w-full truncate rounded-sm px-1.5 py-1 text-left text-xs text-ink hover:bg-paper"
                 >
-                  {c.label}
+                  {c.rel ? `${c.rel} · ${c.label}` : c.label}
                 </button>
               </li>
             ))}

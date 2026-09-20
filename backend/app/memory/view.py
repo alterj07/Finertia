@@ -9,6 +9,7 @@ hard-coded data.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -40,6 +41,64 @@ TYPE_LABEL = {
     "person": "Person",
 }
 DOC_RELS = {"RECORDS", "SETTLES", "CLEARS", "MENTIONS", "EXPLAINS", "SCAN_OF", "REMITS_TO"}
+REL_LABEL = {
+    "RECORDS": "recorded as",
+    "SETTLES": "settles",
+    "CLEARS": "clears",
+    "MENTIONS": "mentions",
+    "EXPLAINS": "explains",
+    "SCAN_OF": "scan of",
+    "REMITS_TO": "remits to",
+    "ISSUED_BY": "issued by",
+    "BILLED_TO": "billed to",
+    "OWNS": "owns",
+    "INVOLVES": "involves",
+    "EVIDENCED_BY": "evidence for",
+    "ABOUT": "about",
+    "IN_PERIOD": "in period",
+}
+# aggregate group -> the phrase for the aggregate→child edge in its expansion
+_GROUP_CHILD_REL = {
+    "payables": "issued",
+    "receivables": "billed",
+    "reconciliation": "owns",
+    "close": "contains",
+}
+
+
+def _rel_label(rel: str) -> str:
+    return REL_LABEL.get(rel, rel.lower().replace("_", " "))
+
+
+def _money_short(x: float | int | None) -> str:
+    if x is None:
+        return ""
+    neg = x < 0
+    v = abs(float(x))
+    if v >= 1_000_000:
+        body = f"{v / 1_000_000:.1f}M"
+    elif v >= 1000:
+        body = f"{v / 1000:.1f}k"
+    else:
+        body = f"{v:.0f}"
+    return f"-${body}" if neg else f"${body}"
+
+
+def _date_short(iso: Any) -> str:
+    if not iso:
+        return ""
+    s = str(iso)[:10]
+    try:
+        from datetime import date
+
+        d = date.fromisoformat(s)
+        return d.strftime("%b %-d")
+    except (ValueError, TypeError):
+        return ""
+
+
+def _title(code: str) -> str:
+    return code.replace("_", " ").capitalize()
 _SKIP_PROPS = {
     "text",
     "lines",
@@ -113,23 +172,70 @@ def _props(n: Node) -> dict[str, Any]:
 
 def _label(g: MemoryGraph, n: Node) -> str:
     p = n.props
+    touched = _date_short(_touched(n))
+    if n.type == "invoice":
+        return " ".join(
+            x
+            for x in (
+                f"Invoice {_money_short(p.get('total'))}".rstrip(),
+                f"· {touched}" if touched else "",
+            )
+            if x
+        )
+    if n.type == "ar_invoice":
+        return " ".join(
+            x
+            for x in (
+                f"Receivable {_money_short(p.get('amount'))}".rstrip(),
+                f"· {touched}" if touched else "",
+            )
+            if x
+        )
+    if n.type == "journal":
+        kind = str(p.get("kind") or "Journal").replace("_", " ").title()
+        return f"{kind} {_money_short(p.get('amount'))}".rstrip()
+    if n.type == "bank_txn":
+        desc = str(p.get("description", "")).upper()
+        amount = p.get("amount") or 0
+        if "FEE" in desc:
+            word = "Bank fee"
+        elif "INTEREST" in desc:
+            word = "Interest"
+        else:
+            word = "Deposit" if amount >= 0 else "Payment"
+        return " ".join(
+            x
+            for x in (
+                f"{word} {_money_short(abs(amount))}".rstrip(),
+                f"· {touched}" if touched else "",
+            )
+            if x
+        )
+    if n.type == "email":
+        subject = re.sub(r"^(re|fwd):\s*", "", str(p.get("subject") or n.id), flags=re.I)
+        return subject[:23] + "…" if len(subject) > 24 else subject
+    if n.type == "scan":
+        return "Scanned invoice"
+    if n.type == "bank_account":
+        return f"{p.get('bank') or 'Bank'} account"
     if n.type == "pattern":
         vendor = g.nodes.get(p.get("vendor_id", ""))
-        who = vendor.props.get("name") if vendor else p.get("vendor_id")
-        return f"Recurring · {who} {p.get('amount', 0):,.0f}"
-    if n.type == "bank_account":
-        return f"{p.get('bank') or 'Bank'} ****{p.get('last4', '')}"
-    if n.type == "email":
-        return p.get("subject") or n.id
-    if n.type == "scan":
-        return f"Scan {p.get('invoice_ref', '')}"
+        who = str(vendor.props.get("name") if vendor else p.get("vendor_id") or "")
+        return f"Recurring {_money_short(p.get('amount'))} · {who[:12]}".rstrip(" ·")
     return p.get("name") or p.get("number") or n.id
+
+
+def _ref(g: MemoryGraph, n: Node) -> str:
+    if n.type == "bank_account":
+        return f"****{n.props.get('last4', '')}"
+    return n.id
 
 
 def _ui(g: MemoryGraph, n: Node, group: str, **extra: Any) -> dict[str, Any]:
     return {
         "id": n.id,
         "label": _label(g, n),
+        "ref": _ref(g, n),
         "group": group,
         "type": TYPE_LABEL.get(n.type, n.type),
         "lastTouched": _touched(n),
@@ -146,10 +252,10 @@ def graph_view(g: MemoryGraph) -> dict[str, Any]:
     parent_of: dict[str, str] = {}  # document id -> aggregate id
     group_of: dict[str, str] = {}
 
-    def add_edge(a: str, b: str) -> None:
+    def add_edge(a: str, b: str, rel: str = "") -> None:
         if a != b and (a, b) not in seen and (b, a) not in seen:
             seen.add((a, b))
-            edges.append({"source": a, "target": b})
+            edges.append({"source": a, "target": b, "rel": rel})
 
     seen: set[tuple[str, str]] = set()
     agent_for: dict[str, str] = {}
@@ -159,6 +265,7 @@ def graph_view(g: MemoryGraph) -> dict[str, Any]:
             {
                 "id": aid,
                 "label": label,
+                "ref": aid,
                 "group": "agent",
                 "isAgent": True,
                 "type": "Agent",
@@ -177,7 +284,7 @@ def graph_view(g: MemoryGraph) -> dict[str, Any]:
             group_of[c.id] = group
         group_of[n.id] = group
         nodes.append(_ui(g, n, group, aggregate=bool(children), children=[c.id for c in children]))
-        add_edge(agent, n.id)
+        add_edge(agent, n.id, "monitors")
 
     for v in sorted((n for n in g.nodes.values() if n.type == "vendor"), key=lambda n: n.id):
         invs = [g.nodes[e.src] for e in g.in_edges(v.id, "ISSUED_BY")]
@@ -206,14 +313,21 @@ def graph_view(g: MemoryGraph) -> dict[str, Any]:
             ),
             key=lambda n: n.id,
         )
-        batch = p.model_copy(update={"props": {**p.props, "name": f"{p.id} journal batch"}})
+        try:
+            from datetime import date
+
+            y, m = p.id.split("-")[:2]
+            batch_name = f"{date(int(y), int(m), 1).strftime('%b %Y')} journals"
+        except (ValueError, TypeError, IndexError):
+            batch_name = f"{p.id} journal batch"
+        batch = p.model_copy(update={"props": {**p.props, "name": batch_name}})
         aggregate(batch, "close", jes, "agent-close")
     for pat in sorted((n for n in g.nodes.values() if n.type == "pattern"), key=lambda n: n.id):
         group_of[pat.id] = "forecast"
         nodes.append(_ui(g, pat, "forecast"))
-        add_edge("agent-forecast", pat.id)
+        add_edge("agent-forecast", pat.id, "monitors")
         for e in g.out_edges(pat.id, "ABOUT"):
-            add_edge(pat.id, e.dst)
+            add_edge(pat.id, e.dst, "about")
 
     # ---- findings: link the agent to what it found ------------------------
     for f in g.findings:
@@ -227,7 +341,9 @@ def graph_view(g: MemoryGraph) -> dict[str, Any]:
         nodes.append(
             {
                 **_ui(g, fn, group),
-                "label": f"{f.code} · {f.key}",
+                "label": _title(f.code)
+                + (f" · {_money_short(f.amount)}" if f.amount else ""),
+                "ref": f.key,
                 "summary": f.title,
                 "props": {
                     "agent": f.agent,
@@ -237,11 +353,11 @@ def graph_view(g: MemoryGraph) -> dict[str, Any]:
                 },
             }
         )
-        add_edge(agent, fid)
+        add_edge(agent, fid, "found")
         for e in g.out_edges(fid):
             target = parent_of.get(e.dst, e.dst)
             if target in group_of or target in agent_of_group.values():
-                add_edge(fid, target)
+                add_edge(fid, target, "concerns")
 
     # ---- expansions: the documents under each aggregate -------------------
     top_ids = {n["id"] for n in nodes}
@@ -251,19 +367,20 @@ def graph_view(g: MemoryGraph) -> dict[str, Any]:
         exp_edges: list[dict] = []
         ekeys: set[tuple[str, str]] = set()
 
-        def eedge(a: str, b: str) -> None:
+        def eedge(a: str, b: str, rel: str = "") -> None:
             if a != b and (a, b) not in ekeys and (b, a) not in ekeys:
                 ekeys.add((a, b))
-                exp_edges.append({"source": a, "target": b})
+                exp_edges.append({"source": a, "target": b, "rel": rel})
 
         def enode(n: Node) -> None:
             if n.id not in exp_nodes and n.id not in top_ids:
                 exp_nodes[n.id] = _ui(g, n, group_of.get(n.id, group))
 
+        child_rel = _GROUP_CHILD_REL.get(group, "contains")
         for cid in agg["children"]:
             child = g.nodes[cid]
             enode(child)
-            eedge(agg["id"], cid)
+            eedge(agg["id"], cid, child_rel)
             for e in g.in_edges(cid) + g.out_edges(cid):
                 if e.rel not in DOC_RELS:
                     continue
@@ -272,13 +389,13 @@ def graph_view(g: MemoryGraph) -> dict[str, Any]:
                 if other is None or other.type in ("period", "gl_account", "person"):
                     continue
                 if other_id in top_ids:
-                    eedge(cid, other_id)
+                    eedge(cid, other_id, _rel_label(e.rel))
                 else:
                     enode(other)
-                    eedge(cid, other_id)
+                    eedge(cid, other_id, _rel_label(e.rel))
             for e in g.in_edges(cid, "INVOLVES") + g.in_edges(cid, "EVIDENCED_BY"):
                 if e.src in top_ids:
-                    eedge(e.src, cid)
+                    eedge(e.src, cid, _rel_label(e.rel))
         expansions[agg["id"]] = {"nodes": list(exp_nodes.values()), "edges": exp_edges}
 
     return {

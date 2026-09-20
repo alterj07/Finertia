@@ -5,6 +5,7 @@ export interface SimNode extends GraphNodeData, SimulationNodeDatum {}
 export interface SimLink extends SimulationLinkDatum<SimNode> {
   source: string | SimNode;
   target: string | SimNode;
+  rel?: string;
 }
 
 export const GROUP_COLOR: Record<GraphGroup, string> = {
