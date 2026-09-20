@@ -53,6 +53,17 @@ const GROUP_KEYWORDS: [RegExp, GraphGroup][] = [
   [/\bagents?\b/i, "agent"],
 ];
 
+// The four "Run agent" buttons, mapped to the agent node(s) they correspond
+// to in the graph — so clicking one always visibly does *something* on the
+// graph, even on this small demo dataset where a re-run often finds nothing
+// new (the underlying facts haven't changed since the last run).
+const AGENT_NODE_KEYWORDS: Record<string, string[]> = {
+  "Cash & Reconciliation": ["reconciliation agent"],
+  "AP/AR": ["ap agent", "ar agent"],
+  Deals: ["deals agent"],
+  "Audit & Controls": ["audit agent"],
+};
+
 // SVG labels are capped at 24 chars; the full label stays on the node for
 // the <title> tooltip, the detail panel and chat matching.
 function shortLabel(label: string): string {
@@ -151,7 +162,7 @@ export function GraphCanvas({
     );
     sim.force(
       "collision",
-      forceCollide<SimNode>().radius((d) => nodeRadius(d, degrees.get(d.id) ?? 0) + 16),
+      forceCollide<SimNode>().radius((d) => nodeRadius(d, degrees.get(d.id) ?? 0) + 11),
     );
   }, []);
 
@@ -185,6 +196,26 @@ export function GraphCanvas({
         if (newNodes.length === 0 && newLinks.length === 0) {
           if (agentLabel) {
             showNotice(`${agentLabel}: run complete — already up to date, no new findings`, "neutral");
+            // Nothing new to reveal, but the click should still visibly do
+            // something: jump to that agent and light up what it touches.
+            const keywords = AGENT_NODE_KEYWORDS[agentLabel];
+            const agentNodeIds = keywords
+              ? data.nodes.filter((n) => n.isAgent && keywords.some((kw) => n.label.toLowerCase().includes(kw))).map((n) => n.id)
+              : [];
+            if (agentNodeIds.length) {
+              const neighborIds = new Set(agentNodeIds);
+              for (const e of data.edges) {
+                if (agentNodeIds.includes(e.source)) neighborIds.add(e.target);
+                if (agentNodeIds.includes(e.target)) neighborIds.add(e.source);
+              }
+              if (spotlightTimerRef.current) clearTimeout(spotlightTimerRef.current);
+              const raf = requestAnimationFrame(() => {
+                setSpotlightIds(neighborIds);
+                zoomToNodes(agentNodeIds);
+              });
+              spotlightTimerRef.current = setTimeout(() => setSpotlightIds(null), 5000);
+              return () => cancelAnimationFrame(raf);
+            }
           }
           return;
         }
@@ -289,8 +320,19 @@ export function GraphCanvas({
 
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 560;
+    const cx = width / 2;
+    const cy = height / 2;
 
-    const nodes: SimNode[] = view.nodes.map((n) => ({ ...n }));
+    // Start compact — a small phyllotaxis disk around the centre, rather
+    // than d3's default spiral (which grows with node count) — so the
+    // layout doesn't visibly "explode" outward on first paint.
+    const startRadius = Math.min(width, height) * 0.16;
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const nodes: SimNode[] = view.nodes.map((n, i) => {
+      const r = startRadius * Math.sqrt((i + 0.5) / view.nodes.length);
+      const angle = i * goldenAngle;
+      return { ...n, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    });
     const links: SimLink[] = view.edges.map((e) => ({
       source: e.source,
       target: e.target,
@@ -304,11 +346,15 @@ export function GraphCanvas({
         "link",
         forceLink<SimNode, SimLink>(links)
           .id((d) => d.id)
-          .distance(70)
+          .distance(55)
           .strength(0.5),
       )
-      .force("charge", forceManyBody().strength(-110))
-      .force("center", forceCenter(width / 2, height / 2))
+      // distanceMax keeps two nodes that are already far apart from
+      // continuing to push each other away — that's what let the layout
+      // drift open over time even with a modest charge strength.
+      .force("charge", forceManyBody().strength(-65).distanceMax(260))
+      .force("center", forceCenter(cx, cy))
+      .alphaDecay(0.04)
       .on("tick", scheduleRender);
 
     simulationRef.current = simulation;
