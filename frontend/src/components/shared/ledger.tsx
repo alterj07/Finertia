@@ -55,7 +55,7 @@ function LedgerRow({ row }: { row: LedgerRowData }) {
         <div className="flex items-center justify-between gap-2 pl-0 sm:justify-end sm:pl-0">
           {row.amount && (
             <span className="font-mono text-sm text-ink">
-              <RollingFigure value={row.amount} duration={800} />
+              <RollingFigure value={row.amount} duration={700} />
             </span>
           )}
           {hasDetail ? (

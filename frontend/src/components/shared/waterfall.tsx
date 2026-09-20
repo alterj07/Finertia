@@ -22,7 +22,7 @@ export function Waterfall({ spec }: { spec: WaterfallSpec }) {
           <div key={bar.label} className="flex w-14 flex-col items-center justify-end gap-1">
             <span className="font-mono text-2xs text-ink-soft">
               <RollingFigure
-                duration={800}
+                duration={700}
                 value={`${bar.value > 0 && (bar.kind === "positive" || bar.kind === "negative") ? "+" : ""}${bar.value}${spec.unit ?? ""}`}
               />
             </span>

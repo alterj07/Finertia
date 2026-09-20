@@ -11,7 +11,7 @@ const DIGIT = /[0-9]/;
 export function RollingFigure({
   value,
   className,
-  duration = 1000,
+  duration = 900,
 }: {
   value: string;
   className?: string;

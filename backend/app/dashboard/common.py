@@ -101,7 +101,7 @@ def kpi(label: str, value: float | str | None, fmt: bool = True) -> dict[str, An
         v = "N/A"
     else:
         v = money(value) if fmt else str(value)
-    return {"label": label, "value": v, "delta": "N/A"}
+    return {"label": label, "value": v}
 
 
 def needs_run(memory: MemoryGraph, *codes: str) -> bool:
