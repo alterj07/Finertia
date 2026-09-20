@@ -29,7 +29,6 @@ import {
   type SimNode,
 } from "@/lib/graph-utils";
 import { FilterChip } from "@/components/shared/filter-chip";
-import { GraphHint } from "@/components/graph/graph-hint";
 import { GraphLegend } from "@/components/graph/graph-legend";
 import { GraphDetailPanel } from "@/components/graph/graph-detail-panel";
 
@@ -107,7 +106,6 @@ export function GraphCanvas({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const draggingRef = useRef(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [hasInteracted, setHasInteracted] = useState(false);
   const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
   const zoomRef = useRef<ReturnType<typeof d3zoom<SVGSVGElement, unknown>> | null>(null);
   const transformRef = useRef<ZoomTransform>(zoomIdentity);
@@ -319,8 +317,13 @@ export function GraphCanvas({
     return () => {
       cancelled = true;
     };
+    // `runInfo` is listed alongside `reloadToken` on purpose: they're always
+    // set together (see GraphScreen's `bump`), and listing both makes that
+    // guarantee explicit rather than relying on a stale closure staying
+    // correct by convention — exactly one reload per click, using the
+    // agent name from *this* click, not a leftover one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadToken]);
+  }, [reloadToken, runInfo]);
 
   // ---- Setup: build simulation once the data is in --------------------
   useEffect(() => {
@@ -407,7 +410,6 @@ export function GraphCanvas({
       .on("zoom", (event) => {
         transformRef.current = event.transform;
         setTransform(event.transform);
-        setHasInteracted(true);
       });
     zoomRef.current = zoomBehavior;
     selection.call(zoomBehavior);
@@ -433,7 +435,6 @@ export function GraphCanvas({
           if (!event.active) simulationRef.current?.alphaTarget(0.15).restart();
           node.fx = node.x;
           node.fy = node.y;
-          setHasInteracted(true);
         })
         .on("drag", (event) => {
           const id = el.dataset.id!;
@@ -504,7 +505,6 @@ export function GraphCanvas({
 
   const handleNodeClick = useCallback(
     (node: SimNode) => {
-      setHasInteracted(true);
       setSelectedId(node.id);
       if (node.aggregate) expandNode(node.id);
     },
@@ -518,13 +518,11 @@ export function GraphCanvas({
       if (!view) return false;
       if (view.nodes.some((n) => n.id === id)) {
         setSelectedId(id);
-        setHasInteracted(true);
         return true;
       }
       for (const [parentId, expansion] of Object.entries(view.expansions)) {
         if (expansion.nodes.some((n) => n.id === id)) {
           setSelectedId(id);
-          setHasInteracted(true);
           expandNode(parentId);
           return true;
         }
@@ -922,7 +920,6 @@ export function GraphCanvas({
             Loading memory graph…
           </div>
         )}
-        {view && !hasInteracted && <GraphHint />}
         <GraphLegend />
         {notice && (
           <div
