@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full w-full overflow-hidden bg-paper text-ink">
       <LeftRail />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden min-[880px]:pl-3">
         <Topbar />
         <main className="scroll-thin flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[920px] px-4 py-6 sm:px-8 sm:py-8">{children}</div>

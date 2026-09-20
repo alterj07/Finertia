@@ -36,16 +36,21 @@ export function LeftRail() {
           aria-hidden
         />
       )}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[240px] shrink-0 flex-col bg-[var(--rail-bg)] transition-transform duration-200 min-[880px]:static min-[880px]:z-auto min-[880px]:w-[220px] min-[880px]:translate-x-0",
-          leftRailOpen ? "translate-x-0" : "-translate-x-full",
-        )}
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-      >
+      <div className="group min-[880px]:fixed min-[880px]:inset-y-0 min-[880px]:left-0 min-[880px]:z-50 min-[880px]:w-3">
+        <div
+          className="absolute inset-y-0 left-0 hidden w-[3px] bg-ink/15 transition-opacity duration-200 group-hover:opacity-0 min-[880px]:block dark:bg-white/25"
+          aria-hidden
+        />
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 flex w-[240px] shrink-0 flex-col bg-[var(--rail-bg)] transition-transform duration-200 ease-out motion-reduce:transition-none min-[880px]:absolute min-[880px]:w-[220px] min-[880px]:group-hover:translate-x-0 min-[880px]:group-focus-within:translate-x-0",
+            leftRailOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+        >
         <div className="flex items-start justify-between px-5 pt-6 pb-5">
           <div>
-            <div className="font-serif text-[19px] leading-none text-paper">Finertia</div>
+            <div className="font-serif text-[19px] leading-none text-white">Finertia</div>
             <div className="mt-1.5 text-xs text-white/45">Agentic Finance OS</div>
           </div>
           <button
@@ -103,7 +108,8 @@ export function LeftRail() {
             ))}
           </ul>
         </div>
-      </aside>
+        </aside>
+      </div>
     </>
   );
 }
