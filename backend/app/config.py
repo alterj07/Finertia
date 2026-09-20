@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     chat_sessions_path: Path = Path("./var/chat_sessions.json")
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4o-mini"
+    storage_backend: Literal["local", "elastic"] = "local"
+    es_url: str = "http://localhost:9200"
+    es_api_key: SecretStr | None = None
+    es_index_prefix: str = ""
 
     @field_validator("cors_origins", mode="before")
     @classmethod

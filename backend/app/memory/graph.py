@@ -16,6 +16,7 @@ Agents read with `context` (a node's neighbourhood rendered for a prompt),
 """
 
 import json
+import logging
 import math
 import re
 from collections import defaultdict
@@ -24,8 +25,11 @@ from typing import TYPE_CHECKING, Any, Iterable
 
 from app.memory.models import Edge, Finding, Node, Signal
 
+log = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from app.data.lake import DataLake
+    from app.memory.es_sync import ElasticMemorySync
 
 _TOKEN = re.compile(r"[a-z0-9]+(?:[.\-][a-z0-9]+)*")
 
@@ -68,6 +72,7 @@ class MemoryGraph:
         self.edges: list[Edge] = []
         self.findings: list[Finding] = []
         self.aliases: dict[str, str] = {}  # norm ref -> canonical node id
+        self.sync: ElasticMemorySync | None = None
         if path and path.exists():
             self.load(path)
 
@@ -97,13 +102,28 @@ class MemoryGraph:
             if n.type != "finding" and (k in keep or n.type != "entity")
         }
         self.save()
+        if self.sync:
+            self.sync.on_reset()
 
     def seed(self, lake: "DataLake") -> "MemoryGraph":
         from app.memory.seed import seed_from_lake
 
         seed_from_lake(self, lake)
         self.save()
+        if self.sync:
+            self.sync.index_nodes(self.nodes.values())
         return self
+
+    def attach_sync(self, sync: "ElasticMemorySync") -> None:
+        """Mirror this graph into Elasticsearch: every node, plus backfill of
+        existing findings and their edges."""
+        self.sync = sync
+        sync.ensure_indices()
+        sync.index_nodes(self.nodes.values())
+        for f in self.findings:
+            node_id = f"finding:{f.code}:{f.key}"
+            edges = [e for e in self.edges if e.finding_node == node_id]
+            sync.on_remember(f, node_id, edges)
 
     # ------------------------------------------------------------ mutation
     def upsert_node(self, node_id: str, type: str | None = None, **props: Any) -> Node:
@@ -180,6 +200,10 @@ class MemoryGraph:
             self.upsert_node(e.dst)
             self.edges.append(e)
         self.save()
+        if self.sync:
+            self.sync.on_remember(finding, node_id, edges)
+            touched = {node_id} | {e.src for e in edges} | {e.dst for e in edges}
+            self.sync.index_nodes(self.nodes[i] for i in touched if i in self.nodes)
         return finding
 
     # --------------------------------------------------------------- reads
@@ -244,6 +268,12 @@ class MemoryGraph:
         self, query: str, types: list[str] | None = None, k: int = 10
     ) -> list[tuple[float, Node]]:
         """BM25-style keyword search over ids, props and free text of every node."""
+        if self.sync:
+            try:
+                hits = self.sync.search(query, types=types, k=k)
+                return [(s, self.nodes[i]) for s, i in hits if i in self.nodes]
+            except Exception as exc:
+                log.warning("ES search failed, falling back to local BM25: %s", exc)
         q = set(_tokens(query))
         if not q:
             return []

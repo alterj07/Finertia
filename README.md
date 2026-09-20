@@ -35,6 +35,10 @@ Backend env vars (see `backend/.env`):
 | `CHAT_SESSIONS_PATH` | `./var/chat_sessions.json` | Chatbot session store JSON file |
 | `OPENAI_API_KEY` | — | Enables LLM orchestrator planning (fallback planner if unset) |
 | `OPENAI_MODEL` | `gpt-4o-mini` | Model used by the orchestrator planner |
+| `STORAGE_BACKEND` | `local` | `elastic` reads/writes the lake + memory through Elasticsearch |
+| `ES_URL` | `http://localhost:9200` | Elasticsearch endpoint |
+| `ES_API_KEY` | — | Optional API key for a secured cluster |
+| `ES_INDEX_PREFIX` | — | Prefix prepended to every index name (tests use `test-`) |
 
 ### Backend architecture
 
@@ -45,11 +49,15 @@ app/
     models.py           BankTxn, GLLine, Invoice, Email pydantic models
     loaders.py          norm_ref + regexes; loaders for the 4 raw sources
     lake.py             DataLake — storage seam (query helpers; future ES/DuckDB impls)
+    es_store.py         ElasticStore + index MAPPINGS (thin ES 8 wrapper)
+    es_lake.py          ElasticDataLake — the DataLake seam over ES queries
+    ingest.py           ingest_lake() + `python -m app.data.ingest` CLI
   memory/
     models.py           Finding, Node, Edge, Signal
     graph.py            MemoryGraph — shared JSON-persisted memory (seed/remember/recall/context/search/signals)
     seed.py             base layer: every invoice/JE/bank line/email/scan linked into one graph
     signals.py          structural leads (duplicates, bank changes, unrecorded items...) routed by agent
+    es_sync.py          ElasticMemorySync — mirrors findings/edges/nodes into ES indices
   agents/
     base.py             AgentContext + Agent ABC + AgentSpec/AgentResult — the orchestrator contract
     llm.py              LLMProvider protocol + NullLLM + OpenAIProvider + build_llm(settings)
@@ -72,6 +80,7 @@ app/
     feedback.py         GET/POST /api/feedback, DELETE /api/feedback/{id}
     orchestrator.py     GET /api/agents (specs), POST /api/orchestrator/run
     chat.py             POST /api/chat, GET/DELETE /api/chat/sessions[/{id}]
+    storage.py          GET /api/storage, POST /api/storage/ingest
 ```
 
 The orchestrator plans from the agent registry via OpenAI when
@@ -98,6 +107,59 @@ without it). Tools (`app/chat/tools.py`):
 | `run_orchestrator` | run specialist agents for a request |
 | `record_feedback` | write a tuning Adjustment for an agent |
 | `list_feedback` | list recorded adjustments |
+
+### Elasticsearch backend (optional)
+
+With `STORAGE_BACKEND=elastic`, the data lake and the memory graph read/write
+through Elasticsearch instead of local files — agents, the orchestrator and the
+chatbot are unchanged. If ES is unreachable at startup the backend logs a
+warning and falls back to `local`.
+
+Start ES (and optionally Kibana) with podman:
+
+```bash
+podman run -d --name finertia-es -p 9200:9200 \
+  -e discovery.type=single-node \
+  -e xpack.security.enabled=false \
+  -e ES_JAVA_OPTS="-Xms1g -Xmx1g" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.15.1
+
+podman run -d --name finertia-kibana -p 5601:5601 \
+  -e ELASTICSEARCH_HOSTS=http://host.containers.internal:9200 \
+  docker.elastic.co/kibana/kibana:8.15.1
+```
+
+Load the lake into ES and run the backend against it:
+
+```bash
+cd backend
+uv run python -m app.data.ingest            # recreates fin-* indices, prints counts
+STORAGE_BACKEND=elastic uv run uvicorn app.main:app --port 8000
+```
+
+If `fin-bank` is missing, empty, or fails the `_meta.finertia_schema`
+compatibility check at startup, the app re-ingests from `DATA_DIR`
+automatically (falling back to local mode if `DATA_DIR` is unavailable — it
+never crashes on foreign indices). `GET /api/storage` reports the active
+backend and per-index document counts; `POST /api/storage/ingest` re-ingests
+from `DATA_DIR`. Every `fin-*` doc carries an `ord` field preserving the local
+loader order, since `seed()` is order-dependent.
+
+Indices (`ES_INDEX_PREFIX` prepends to each name):
+
+| Index | Holds |
+| --- | --- |
+| `fin-bank` | bank transactions (`BankTxn`, id = `txn_id`) |
+| `fin-gl` | journal lines (`GLLine`, id = `je_id:line_no`) |
+| `fin-invoices` | invoices (`Invoice`, id = `source:invoice_number_norm`) |
+| `fin-emails` | emails (`Email`, id = `file`) |
+| `agent-memory` | findings written by `MemoryGraph.remember` |
+| `memory-graph` | edges written by `remember` (finding-layer edges) |
+| `memory-nodes` | every graph node + flattened text, powering ES-backed `search()` |
+
+The JSON file under `var/` remains the source of truth for the graph; ES is a
+replica for search and sharing. `graph.search()` queries `memory-nodes` and
+falls back to the local BM25 on any ES error.
 
 ## Deploy
 

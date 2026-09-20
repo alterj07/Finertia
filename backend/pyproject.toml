@@ -5,6 +5,7 @@ description = "Finertia API backend"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "elasticsearch>=8.12,<9",
     "fastapi>=0.141.1",
     "openai>=1.0,<3",
     "pyarrow>=25.0.1",
