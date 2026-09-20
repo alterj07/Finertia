@@ -92,6 +92,16 @@ The orchestrator plans from the agent registry via OpenAI when
 otherwise. Each run is recorded as an `ORCHESTRATION_RUN` finding in the
 shared memory graph.
 
+**The orchestrator is memory-first**: before planning it consults the shared
+memory (`consult_memory`) and builds a `MemoryBrief` — recent findings, open
+signals grouped by `suggested_agent`, and a `memory.search()` hit list (an
+Elasticsearch query in elastic mode). The brief goes into the LLM prompt and
+also boosts the keyword-fallback scoring (agents with open signals get
++2/signal). `GET /api/orchestrator/brief?request=...` returns the brief alone;
+`POST /api/orchestrator/run` responses include it. The LLM may answer
+`{"calls": [], "reason": ...}` when a finding already covers the request —
+that is a real plan, not a fallback.
+
 ### Chatbot
 
 `POST /api/chat` runs a tool-calling loop (`app/chat/service.py`): the LLM gets

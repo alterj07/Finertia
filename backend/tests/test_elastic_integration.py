@@ -13,6 +13,7 @@ pytest.importorskip("elasticsearch")
 
 from app.agents.base import AgentContext  # noqa: E402
 from app.agents.feedback import FeedbackStore  # noqa: E402
+from app.agents.llm import NullLLM  # noqa: E402
 from app.agents.recon.agent import CashReconAgent  # noqa: E402
 from app.data.es_lake import ElasticDataLake  # noqa: E402
 from app.data.es_store import (
@@ -188,3 +189,22 @@ def test_es_is_the_store(store, es_lake, tmp_path) -> None:
     assert reader.edge("finding:PERSISTED:BK00003", "INVOLVES", "BK00003")
     assert reader.path is None
     assert not (tmp_path / "memory_graph.json").exists()
+
+
+def test_consult_memory_elastic(store, es_lake, tmp_path) -> None:
+    from app.agents.orchestrator import Orchestrator
+    from app.agents.registry import default_registry
+
+    memory = MemoryGraph(None)
+    memory.seed(es_lake)
+    memory.attach_sync(ElasticMemorySync(store))
+    ctx = AgentContext(
+        lake=es_lake,
+        memory=memory,
+        feedback=FeedbackStore(tmp_path / "feedback.json"),
+    )
+    brief = Orchestrator(default_registry(), NullLLM()).consult_memory(
+        ctx, "HELIOS REMIT 88213"
+    )
+    assert brief.storage == "elasticsearch"
+    assert brief.search_hits

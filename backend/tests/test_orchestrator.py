@@ -13,10 +13,14 @@ class FakeLLM:
 
     def __init__(self, response: str) -> None:
         self.response = response
+        self.prompts: list[str] = []
+        self.systems: list[str | None] = []
 
     def complete(
         self, prompt: str, *, system: str | None = None, json_mode: bool = False, **kw: Any
     ) -> str:
+        self.prompts.append(prompt)
+        self.systems.append(system)
         return self.response
 
 
@@ -105,4 +109,85 @@ def test_api(client, data_dir: Path) -> None:
     assert r.status_code == 200
     body = r.json()
     assert body["plan"]["planner"] in ("llm", "fallback")
-    assert len(body["results"]) == 1
+    agents = [r["agent"] for r in body["results"]]
+    assert "Cash & Reconciliation" in agents
+    assert "brief" in body
+
+
+def test_registry_surface() -> None:
+    assert default_registry().names() == ["Cash & Reconciliation", "AP/AR"]
+
+
+def _brief(**kw: Any):
+    from app.agents.orchestrator import MemoryBrief
+
+    return MemoryBrief(storage="json", **kw)
+
+
+def test_llm_prompt_includes_brief() -> None:
+    llm = canned([{"agent": "AP/AR", "params": {}, "rationale": "apar signals"}])
+    brief = _brief(signals=[{"code": "DUP_INVOICE"}], signals_by_agent={"AP/AR": 1})
+    plan = Orchestrator(default_registry(), llm).plan("payables issues", brief=brief)
+    assert plan.planner == "llm"
+    assert "Memory brief" in llm.prompts[0]
+    assert "DUP_INVOICE" in llm.prompts[0]
+    assert "memory brief" in llm.systems[0]
+
+
+def test_llm_explicit_empty_plan(ctx: AgentContext) -> None:
+    llm = FakeLLM(json.dumps({"calls": [], "reason": "already covered"}))
+    orch = Orchestrator(default_registry(), llm)
+    plan = orch.plan("what changed?", brief=_brief())
+    assert plan.planner == "llm"
+    assert plan.calls == []
+    assert plan.reason == "already covered"
+    result = orch.run(ctx, "what changed?")
+    assert result.results == []
+    assert ctx.memory.recall(code="ORCHESTRATION_RUN")
+
+
+def test_fallback_scores_signals() -> None:
+    orch = Orchestrator(default_registry(), NullLLM())
+    brief = _brief(signals_by_agent={"AP/AR": 3})
+    plan = orch.plan("", brief=brief)
+    assert [c.agent for c in plan.calls] == ["AP/AR"]
+    plan = orch.plan("reconcile the bank", brief=brief)
+    assert {c.agent for c in plan.calls} == {"Cash & Reconciliation", "AP/AR"}
+    plan = orch.plan("", brief=_brief())
+    assert {c.agent for c in plan.calls} == {"Cash & Reconciliation", "AP/AR"}
+
+
+def test_consult_memory(ctx: AgentContext) -> None:
+    ctx.memory.seed(ctx.lake)
+    brief = Orchestrator(default_registry(), NullLLM()).consult_memory(
+        ctx, "helios remit"
+    )
+    assert brief.storage == "json"
+    assert len(brief.signals) > 0
+    assert set(brief.signals_by_agent) & {"AP/AR", "Cash & Reconciliation"}
+    assert brief.search_hits
+
+    from app.agents.recon.agent import CashReconAgent
+
+    CashReconAgent().run(ctx)
+    brief = Orchestrator(default_registry(), NullLLM()).consult_memory(ctx, "recon")
+    assert any(f["code"] == "RECON_SUMMARY" for f in brief.findings)
+
+
+def test_run_records_brief_summary(ctx: AgentContext) -> None:
+    ctx.memory.seed(ctx.lake)
+    result = Orchestrator(default_registry(), NullLLM()).run(
+        ctx, "find duplicate invoices and payables issues"
+    )
+    assert "AP/AR" in [c.agent for c in result.plan.calls]
+    assert "AP/AR" in [r.agent for r in result.results]
+    run = ctx.memory.recall(code="ORCHESTRATION_RUN")[-1]
+    assert run.data["brief_summary"]["storage"] == "json"
+
+
+def test_api_brief(client) -> None:
+    r = client.get("/api/orchestrator/brief", params={"request": "reconcile"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["storage"] == "json"
+    assert "signals" in body
