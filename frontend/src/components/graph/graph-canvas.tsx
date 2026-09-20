@@ -68,23 +68,10 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
   const [view, setView] = useState<GraphView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const expansionsRef = useRef<GraphView["expansions"]>({});
-
-  // ---- Load the live memory graph (again whenever reloadToken changes) ----
-  useEffect(() => {
-    let cancelled = false;
-    fetchGraphView()
-      .then((data) => {
-        if (cancelled) return;
-        expansionsRef.current = data.expansions;
-        setView(data);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load graph");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadToken]);
+  // What the last reload added: painted gold so an agent run is easy to see.
+  const [fresh, setFresh] = useState<{ nodes: Set<string>; links: Set<string>; touched: Set<string> }>(
+    { nodes: new Set(), links: new Set(), touched: new Set() },
+  );
 
   const scheduleRender = useCallback(() => {
     if (rafRef.current != null) return;
@@ -109,6 +96,83 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
       forceCollide<SimNode>().radius((d) => nodeRadius(d, degrees.get(d.id) ?? 0) + 16),
     );
   }, []);
+
+  // ---- Load the live memory graph (again whenever reloadToken changes) ----
+  // The first load builds the simulation. Later loads merge: existing nodes keep
+  // their positions, new nodes spawn next to what they connect to, and the
+  // additions are highlighted.
+  useEffect(() => {
+    let cancelled = false;
+    fetchGraphView()
+      .then((data) => {
+        if (cancelled) return;
+        expansionsRef.current = data.expansions;
+        if (nodesRef.current.length === 0) {
+          setView(data);
+          return;
+        }
+        const existing = new Map(nodesRef.current.map((n) => [n.id, n]));
+        const linkKey = (a: string, b: string) => `${a}->${b}`;
+        const existingLinks = new Set(
+          linksRef.current.map((l) => linkKey(linkEndpointId(l.source), linkEndpointId(l.target))),
+        );
+        const newLinks = data.edges.filter(
+          (e) => !existingLinks.has(linkKey(e.source, e.target)) && !existingLinks.has(linkKey(e.target, e.source)),
+        );
+        const newNodes = data.nodes.filter((n) => !existing.has(n.id));
+        if (newNodes.length === 0 && newLinks.length === 0) return;
+
+        const added: SimNode[] = newNodes.map((n) => {
+          const anchorId = newLinks.find((e) => e.source === n.id || e.target === n.id);
+          const other = anchorId ? (anchorId.source === n.id ? anchorId.target : anchorId.source) : null;
+          const anchor = other ? existing.get(other) : undefined;
+          return {
+            ...n,
+            x: (anchor?.x ?? 0) + (Math.random() - 0.5) * 40,
+            y: (anchor?.y ?? 0) + (Math.random() - 0.5) * 40,
+          };
+        });
+        nodesRef.current = [...nodesRef.current, ...added];
+        const known = new Set(nodesRef.current.map((n) => n.id));
+        const addedLinks: SimLink[] = newLinks
+          .filter((e) => known.has(e.source) && known.has(e.target))
+          .map((e) => ({ source: e.source, target: e.target }));
+        linksRef.current = [...linksRef.current, ...addedLinks];
+
+        const freshNodes = new Set(added.map((n) => n.id));
+        const touched = new Set<string>();
+        for (const e of newLinks) {
+          if (!freshNodes.has(e.source)) touched.add(e.source);
+          if (!freshNodes.has(e.target)) touched.add(e.target);
+        }
+        setFresh({
+          nodes: freshNodes,
+          links: new Set(newLinks.map((e) => linkKey(e.source, e.target))),
+          touched,
+        });
+
+        const sim = simulationRef.current;
+        if (sim) {
+          sim.nodes(nodesRef.current);
+          (sim.force("link") as ForceLink<SimNode, SimLink>).links(linksRef.current);
+          refreshForces();
+          if (reducedMotionRef.current) {
+            sim.alpha(1).stop();
+            for (let i = 0; i < 300; i += 1) sim.tick();
+          } else {
+            sim.alpha(0.5).restart();
+          }
+        }
+        scheduleRender();
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load graph");
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadToken]);
 
   // ---- Setup: build simulation once the data is in --------------------
   useEffect(() => {
@@ -401,6 +465,7 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                 const tId = linkEndpointId(l.target);
                 const connected = focusId != null && (sId === focusId || tId === focusId);
                 const dimmed = focusId != null && !connected;
+                const isFresh = fresh.links.has(`${sId}->${tId}`) || fresh.links.has(`${tId}->${sId}`);
                 return (
                   <line
                     key={`${sId}-${tId}-${i}`}
@@ -408,8 +473,8 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                     y1={s.y}
                     x2={t.x}
                     y2={t.y}
-                    stroke={connected ? "var(--green)" : "var(--rule)"}
-                    strokeWidth={connected ? 1.25 : 1}
+                    stroke={isFresh ? "var(--gold)" : connected ? "var(--green)" : "var(--rule)"}
+                    strokeWidth={isFresh ? 2 : connected ? 1.25 : 1}
                     opacity={dimmed ? 0.12 : 1}
                   />
                 );
@@ -423,6 +488,8 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                 const dimmed = !!focusId && !focusNeighbors?.has(node.id) && !node.isAgent;
                 const isFocused = focusId === node.id;
                 const isNeighbor = !!focusId && focusNeighbors?.has(node.id) && !isFocused;
+                const isFresh = fresh.nodes.has(node.id);
+                const isTouched = fresh.touched.has(node.id);
                 return (
                   <g
                     key={node.id}
@@ -450,11 +517,18 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
                     className="cursor-pointer outline-none"
                     style={{ opacity: dimmed ? 0.12 : 1 }}
                   >
+                    {isFresh && (
+                      <circle r={radius + 6} fill="var(--gold)" opacity={0.25}>
+                        <animate attributeName="r" values={`${radius + 4};${radius + 9};${radius + 4}`} dur="1.6s" repeatCount="indefinite" />
+                      </circle>
+                    )}
                     <circle
                       r={radius}
-                      fill={GROUP_COLOR[node.group]}
-                      stroke={isFocused ? "var(--green)" : isNeighbor ? "var(--green)" : "none"}
-                      strokeWidth={isFocused ? 2.5 : isNeighbor ? 1.5 : 0}
+                      fill={isFresh ? "var(--gold)" : GROUP_COLOR[node.group]}
+                      stroke={
+                        isFocused || isNeighbor ? "var(--green)" : isTouched ? "var(--gold)" : "none"
+                      }
+                      strokeWidth={isFocused ? 2.5 : isNeighbor ? 1.5 : isTouched ? 2 : 0}
                     />
                     <text
                       y={radius + 11}
@@ -486,6 +560,21 @@ export function GraphCanvas({ reloadToken = 0 }: { reloadToken?: number }) {
         )}
         {view && !hasInteracted && <GraphHint />}
         <GraphLegend />
+        {fresh.nodes.size + fresh.links.size > 0 && (
+          <div className="absolute right-3 bottom-3 flex items-center gap-2 border border-gold/40 bg-paper-raised/95 px-2.5 py-1.5 text-xs backdrop-blur-sm">
+            <span className="h-2 w-2 rounded-full bg-gold" aria-hidden />
+            <span className="text-ink">
+              New since last run: {fresh.nodes.size} nodes, {fresh.links.size} links
+            </span>
+            <button
+              type="button"
+              onClick={() => setFresh({ nodes: new Set(), links: new Set(), touched: new Set() })}
+              className="text-ink-soft hover:text-ink"
+            >
+              clear
+            </button>
+          </div>
+        )}
         <Suspense fallback={null}>
           <DeepLink onNode={handleDeepLink} />
         </Suspense>
