@@ -7,14 +7,14 @@ from typing import Any
 from app.agents.llm import LLMProvider, ToolCall
 from app.chat.models import ChatMessage, ChatResponse, ToolEvent
 from app.chat.sessions import ChatSessionStore
-from app.chat.tools import Tool
+from app.chat.tools import Tool, labels_for
 from app.memory.graph import MemoryGraph
 
 SYSTEM_PROMPT = """You are Finertia, the finance close assistant for the controller at Lumen Robotics. You answer questions about the company's books using ONLY the tools provided; you never invent figures, dates, document references or vendor names.
 
 Rules:
 1. Every number, date and identifier in your answer must come from a tool result in this conversation. If the tools do not return it, say you could not find it and suggest what to look for.
-2. Cite evidence inline using node ids in square brackets, e.g. [BK00037], [JE-1049], [INV-7781], [006_helios_remittance.eml], [finding:FX_DIFFERENCE:BP-4471].
+2. Cite evidence inline using node ids in square brackets, e.g. [BK00037], [JE-1049], [INV-7781], [006_helios_remittance.eml], [finding:FX_DIFFERENCE:BP-4471]. Refer to vendors, customers and documents by their names as returned in the tools' "label" fields (e.g. "Brightline Systems [V-1002]"), never by a bare id in prose.
 3. Start with search_memory or get_findings to locate entities, then get_context to read the neighbourhood before concluding. Prefer existing findings over re-deriving.
 4. Use run_orchestrator only when the user asks to run, re-run, reconcile or close; describe what ran and summarise its findings.
 5. When the user says an agent made a mistake, first confirm the specific pair or item with them (or find it via tools), then call record_feedback with a precise Adjustment: rule_param {param: value}, pin_match {bank_ids, book_ids}, block_match {pairs: [[bank_id, je_id]]}, reclassify {...}, note {...}. Explain that it will apply on the next run.
@@ -153,6 +153,7 @@ class ChatService:
             message=final,
             tool_events=events,
             citations=ordered,
+            labels=labels_for(self.memory, ordered) if self.memory is not None else {},
         )
 
     def _is_node(self, ref: str) -> bool:

@@ -28,11 +28,13 @@ import { Textarea } from "@/components/ui/textarea";
 function AssistantText({
   content,
   onCite,
+  labels,
 }: {
   content: string;
   onCite: (id: string) => void;
+  labels?: Record<string, string>;
 }) {
-  return <ChatText text={content} onCite={onCite} />;
+  return <ChatText text={content} onCite={onCite} labels={labels} />;
 }
 
 function ToolBadges({ events }: { events: ToolEvent[] }) {
@@ -55,10 +57,12 @@ function ToolBadges({ events }: { events: ToolEvent[] }) {
 
 function EvidencePanel({
   citations,
+  labels,
   selected,
   onSelect,
 }: {
   citations: string[];
+  labels: Record<string, string>;
   selected: NodeDetail | null;
   onSelect: (id: string) => void;
 }) {
@@ -88,10 +92,11 @@ function EvidencePanel({
                 <Badge
                   key={c}
                   variant="outline"
+                  title={labels[c] ? c : undefined}
                   className="cursor-pointer font-mono text-[10px]"
                   onClick={() => onSelect(c)}
                 >
-                  {c}
+                  {labels[c] ?? c}
                 </Badge>
               ))}
             </div>
@@ -161,6 +166,7 @@ function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [eventsByIdx, setEventsByIdx] = useState<Record<number, ToolEvent[]>>({});
   const [citations, setCitations] = useState<string[]>([]);
+  const [labels, setLabels] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<NodeDetail | null>(null);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -219,6 +225,7 @@ function ChatPage() {
       setMessages((ms) => [...ms, resp.message]);
       setEventsByIdx((m) => ({ ...m, [messages.length + 1]: resp.tool_events }));
       setCitations(resp.citations);
+      setLabels(resp.labels ?? {});
       refreshSessions();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
@@ -291,7 +298,11 @@ function ChatPage() {
                 <div key={i} className="flex justify-start">
                   <div className="bg-muted max-w-[85%] rounded-lg px-3 py-2">
                     {m.content && (
-                      <AssistantText content={m.content} onCite={showEvidence} />
+                      <AssistantText
+                        content={m.content}
+                        onCite={showEvidence}
+                        labels={labels}
+                      />
                     )}
                     <ToolBadges events={eventsByIdx[i] ?? []} />
                   </div>
@@ -336,6 +347,7 @@ function ChatPage() {
       <div className="flex min-h-[40vh] flex-col md:w-2/5">
         <EvidencePanel
           citations={citations}
+          labels={labels}
           selected={selected}
           onSelect={showEvidence}
         />

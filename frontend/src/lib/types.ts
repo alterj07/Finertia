@@ -126,6 +126,7 @@ export interface GraphView extends GraphDataset {
 // ---- Copilot ----------------------------------------------------------
 
 export interface Citation {
+  id?: string;
   label: string;
   href: string;
 }
@@ -135,6 +136,7 @@ export interface CopilotMessage {
   role: "agent" | "user";
   text: string;
   citations?: Citation[];
+  labels?: Record<string, string>;
 }
 
 export interface ModuleCopilotScript {

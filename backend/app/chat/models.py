@@ -59,3 +59,4 @@ class ChatResponse(BaseModel):
     message: ChatMessage
     tool_events: list[ToolEvent] = []
     citations: list[str] = []
+    labels: dict[str, str] = {}  # cited node id -> human-readable label

@@ -11,6 +11,7 @@ from app.agents.base import AgentContext
 from app.agents.feedback import Adjustment
 from app.agents.orchestrator import Orchestrator
 from app.agents.registry import AgentRegistry
+from app.memory.view import node_label
 
 
 @dataclass
@@ -29,6 +30,20 @@ class Tool:
                 "parameters": self.parameters,
             },
         }
+
+
+def labels_for(g, ids: list[str]) -> dict[str, str]:
+    """id -> human-readable graph label, for the citations a response carries.
+    Unknown ids and ids whose label is just the id are omitted."""
+    out: dict[str, str] = {}
+    for ref in ids:
+        nid = g.resolve(ref)
+        if nid not in g.nodes:
+            continue
+        label = node_label(g, g.nodes[nid])
+        if label and label != ref:
+            out[ref] = label
+    return out
 
 
 def _summary(props: dict[str, Any]) -> str:
@@ -154,6 +169,7 @@ def build_tools(
         for s, n in hits:
             item: dict[str, Any] = {
                 "id": n.id,
+                "label": node_label(g, n),
                 "type": n.type,
                 "score": s,
                 "summary": _summary(n.props),
@@ -213,6 +229,9 @@ def build_tools(
         cited = [party]
         if p.get("party"):
             cited = [p["party"]["id"]]
+            pid = p["party"]["id"]
+            if pid in g.nodes:
+                p["party"]["label"] = node_label(g, g.nodes[pid])
         cited += [d["id"] for d in p.get("documents", [])]
         return {**p, "citations": cited}
 

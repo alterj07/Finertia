@@ -21,6 +21,32 @@ def test_search_memory(tools) -> None:
     assert out["citations"][: len(out["nodes"])] == [r["id"] for r in out["nodes"]]
 
 
+def test_search_memory_includes_labels(tools) -> None:
+    out = tools["search_memory"].fn("harbor")
+    assert all("label" in n for n in out["nodes"])
+    vendor = next(n for n in out["nodes"] if n["type"] == "vendor")
+    assert vendor["label"] == "Harbor Insurance Co"
+
+
+def test_labels_for(tools, ctx: AgentContext) -> None:
+    from app.chat.tools import labels_for
+    from app.memory.models import Finding
+
+    ctx.memory.remember(
+        Finding(
+            agent="AP/AR",
+            code="DUPLICATE",
+            key="INV-1",
+            title="Duplicate invoice INV-1",
+            detail="same invoice twice",
+        )
+    )
+    labels = labels_for(ctx.memory, ["V012", "finding:DUPLICATE:INV-1", "NOPE-9"])
+    assert labels["V012"] == "Harbor Insurance Co"
+    assert labels["finding:DUPLICATE:INV-1"] == "Duplicate invoice INV-1"
+    assert "NOPE-9" not in labels
+
+
 def test_search_memory_finds_finding_by_number_word(tools, ctx) -> None:
     default_registry().get("Cash & Reconciliation").run(ctx)
     out = tools["search_memory"].fn("bank credit matched three invoices")

@@ -113,6 +113,7 @@ export function CopilotRail() {
                 <ChatText
                   text={m.text.length > 700 && !expanded[m.id] ? m.text.slice(0, 700) + "…" : m.text}
                   onCite={(id) => router.push(`/graph?node=${encodeURIComponent(id)}`)}
+                  labels={m.labels}
                 />
                 {m.text.length > 700 && (
                   <button
@@ -125,15 +126,19 @@ export function CopilotRail() {
                 )}
                 {m.citations && m.citations.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap items-start gap-1">
-                    {m.citations.map((c) => (
-                      <Link
-                        key={c.href + c.label}
-                        href={c.href}
-                        className="rounded border border-rule bg-paper px-1.5 py-0.5 font-mono text-2xs text-blue hover:border-blue"
-                      >
-                        {c.label}
-                      </Link>
-                    ))}
+                    {m.citations.map((c) => {
+                      const substituted = !!c.id && c.id !== c.label;
+                      return (
+                        <Link
+                          key={c.href + c.label}
+                          href={c.href}
+                          title={substituted ? c.id : undefined}
+                          className={`rounded border border-rule bg-paper px-1.5 py-0.5 text-2xs text-blue hover:border-blue${substituted ? "" : " font-mono"}`}
+                        >
+                          {c.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>

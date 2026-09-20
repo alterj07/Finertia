@@ -91,9 +91,11 @@ export const useCopilotStore = create<CopilotState>()(
             role: "agent",
             text: resp.message.content ?? "",
             citations: resp.citations.map((id) => ({
-              label: id,
+              id,
+              label: resp.labels?.[id] ?? id,
               href: `/graph?node=${encodeURIComponent(id)}`,
             })),
+            labels: resp.labels ?? {},
           };
           set((s) => ({
             sessionId: resp.session_id,

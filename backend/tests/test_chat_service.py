@@ -147,6 +147,14 @@ def test_citations_include_digest_ids(service) -> None:
     assert resp.citations == ["finding:FX_DIFFERENCE:BP-4471"]
 
 
+def test_response_carries_labels(service) -> None:
+    ctx, sessions, tools = service
+    llm = ScriptedLLM([ChatTurn(content="Harbor Insurance Co [V012] is a vendor.")])
+    resp = _svc(tools, sessions, llm, memory=ctx.memory).respond(None, "hi")
+    assert resp.citations == ["V012"]
+    assert resp.labels == {"V012": "Harbor Insurance Co"}
+
+
 def test_findings_digest_empty(service) -> None:
     ctx, sessions, tools = service
     llm = ScriptedLLM([ChatTurn(content="ok")])

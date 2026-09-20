@@ -5,7 +5,11 @@ import React from "react";
 const CITE_RE = /\[([^\[\]]+)\]/g;
 const BOLD_RE = /\*\*([^*]+)\*\*|__([^_]+)__/g;
 
-function inline(text: string, onCite?: (id: string) => void): React.ReactNode[] {
+function inline(
+  text: string,
+  onCite?: (id: string) => void,
+  labels?: Record<string, string>,
+): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
@@ -13,13 +17,16 @@ function inline(text: string, onCite?: (id: string) => void): React.ReactNode[] 
   while ((m = re.exec(text))) {
     if (m.index > last) parts.push(...bold(text.slice(last, m.index), last));
     const id = m[1];
+    const label = labels?.[id];
+    const substituted = !!label && label !== id;
     parts.push(
       <button
         key={`${m.index}-${id}`}
         onClick={() => onCite?.(id)}
-        className="text-primary bg-primary/10 hover:bg-primary/20 mx-0.5 rounded px-1 font-mono text-xs"
+        title={substituted ? id : undefined}
+        className={`text-primary bg-primary/10 hover:bg-primary/20 mx-0.5 rounded px-1 text-xs${substituted ? "" : " font-mono"}`}
       >
-        {id}
+        {label ?? id}
       </button>,
     );
     last = m.index + m[0].length;
@@ -45,9 +52,11 @@ function bold(text: string, base: number): React.ReactNode[] {
 export function ChatText({
   text,
   onCite,
+  labels,
 }: {
   text: string;
   onCite?: (id: string) => void;
+  labels?: Record<string, string>;
 }) {
   const blocks: React.ReactNode[] = [];
   let list: string[] = [];
@@ -59,7 +68,7 @@ export function ChatText({
     blocks.push(
       <ul key={key} className="list-disc pl-4 space-y-0.5">
         {items.map((item, i) => (
-          <li key={i}>{inline(item, onCite)}</li>
+          <li key={i}>{inline(item, onCite, labels)}</li>
         ))}
       </ul>,
     );
@@ -73,7 +82,7 @@ export function ChatText({
     } else {
       flush(`ul-${i}`);
       if (line.trim()) {
-        blocks.push(<p key={`p-${i}`}>{inline(line.trim(), onCite)}</p>);
+        blocks.push(<p key={`p-${i}`}>{inline(line.trim(), onCite, labels)}</p>);
       }
     }
   });

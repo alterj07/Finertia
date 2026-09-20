@@ -170,7 +170,7 @@ def _props(n: Node) -> dict[str, Any]:
     return out
 
 
-def _label(g: MemoryGraph, n: Node) -> str:
+def node_label(g: MemoryGraph, n: Node) -> str:
     p = n.props
     touched = _date_short(_touched(n))
     if n.type == "invoice":
@@ -222,6 +222,9 @@ def _label(g: MemoryGraph, n: Node) -> str:
         vendor = g.nodes.get(p.get("vendor_id", ""))
         who = str(vendor.props.get("name") if vendor else p.get("vendor_id") or "")
         return f"Recurring {_money_short(p.get('amount'))} · {who[:12]}".rstrip(" ·")
+    if n.type == "finding":
+        code = n.id.split(":")[1] if ":" in n.id else n.id
+        return str(p.get("title") or _title(code))
     return p.get("name") or p.get("number") or n.id
 
 
@@ -234,7 +237,7 @@ def _ref(g: MemoryGraph, n: Node) -> str:
 def _ui(g: MemoryGraph, n: Node, group: str, **extra: Any) -> dict[str, Any]:
     return {
         "id": n.id,
-        "label": _label(g, n),
+        "label": node_label(g, n),
         "ref": _ref(g, n),
         "group": group,
         "type": TYPE_LABEL.get(n.type, n.type),

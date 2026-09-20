@@ -72,6 +72,7 @@ export interface ChatResponse {
   message: ChatMessage;
   tool_events: ToolEvent[];
   citations: string[];
+  labels: Record<string, string>;
 }
 
 export interface SessionSummary {
