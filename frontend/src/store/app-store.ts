@@ -1,8 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { AUTONOMY_WORKFLOWS } from "@/lib/config/autonomy";
-import type { AutonomyLevel, AutonomyWorkflow } from "@/lib/types";
 
 export const ENTITIES = ["Lumen Robotics"];
 export const PERIODS = ["FY26 · Q1"];
@@ -17,9 +15,6 @@ interface AppState {
 
   period: string;
   setPeriod: (period: string) => void;
-
-  autonomy: AutonomyWorkflow[];
-  setAutonomyLevel: (id: string, level: AutonomyLevel) => void;
 
   leftRailOpen: boolean;
   copilotOpen: boolean;
@@ -60,12 +55,6 @@ export const useAppStore = create<AppState>((set) => ({
 
   period: PERIODS[0],
   setPeriod: (period) => set({ period }),
-
-  autonomy: AUTONOMY_WORKFLOWS,
-  setAutonomyLevel: (id, level) =>
-    set((s) => ({
-      autonomy: s.autonomy.map((w) => (w.id === id ? { ...w, level } : w)),
-    })),
 
   leftRailOpen: false,
   copilotOpen: false,

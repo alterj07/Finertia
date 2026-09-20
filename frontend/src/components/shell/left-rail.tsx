@@ -6,21 +6,8 @@ import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/lib/config/nav";
-import { AUTONOMY_WORKFLOWS } from "@/lib/config/autonomy";
 import { useAppStore } from "@/store/app-store";
 import { pathToModule } from "@/lib/route";
-
-const LEVEL_LABEL: Record<string, string> = {
-  auto: "Auto",
-  assisted: "Assisted",
-  manual: "Manual",
-};
-
-const LEVEL_CLASS: Record<string, string> = {
-  auto: "text-green",
-  assisted: "text-gold",
-  manual: "text-ink-soft",
-};
 
 export function LeftRail() {
   const pathname = usePathname();
@@ -133,21 +120,6 @@ export function LeftRail() {
           </ul>
         </nav>
 
-        <div className="shrink-0 border-t border-white/10 px-3 py-4">
-          <div className={fade}>
-            <div className="mb-2 text-2xs text-white/45">Autonomy</div>
-            <ul className="flex flex-col gap-1.5">
-              {AUTONOMY_WORKFLOWS.map((w) => (
-                <li key={w.id} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="truncate text-white/65">{w.workflow}</span>
-                  <span className={cn("shrink-0 font-mono text-2xs", LEVEL_CLASS[w.level])}>
-                    {LEVEL_LABEL[w.level]}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
       </aside>
     </>
   );

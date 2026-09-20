@@ -1,8 +1,6 @@
 // Shared domain types for the Finertia frontend.
 // These shapes are satisfied by the backend /api/dashboard/* endpoints;
-// static config (nav, copilot prompts, autonomy levels) lives in src/lib/config/*.
-
-export type AutonomyLevel = "auto" | "assisted" | "manual";
+// static config (nav, copilot prompts) lives in src/lib/config/*.
 
 export type ActionTag = "auto" | "review" | "flag";
 
@@ -22,13 +20,6 @@ export interface ModuleMeta {
   key: ModuleKey;
   label: string;
   href: string;
-}
-
-export interface AutonomyWorkflow {
-  id: string;
-  workflow: string;
-  module: ModuleKey;
-  level: AutonomyLevel;
 }
 
 export interface RowAction {
