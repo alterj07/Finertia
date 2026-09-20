@@ -20,7 +20,7 @@ export function ReceivablesScreen() {
   return (
     <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
       {(d) => (
-        <div>
+        <div className="stagger">
           <SectionBlock title="Aging">
             <KpiRow cells={d.aging} />
           </SectionBlock>

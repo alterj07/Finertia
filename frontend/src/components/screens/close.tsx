@@ -27,7 +27,7 @@ export function CloseScreen() {
 
       <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
         {(d) => (
-          <>
+          <div className="stagger">
             <SectionBlock
               title="Close checklist"
               headerRight={
@@ -46,7 +46,7 @@ export function CloseScreen() {
             <SectionBlock title="Variance flags">
               <Ledger rows={d.variance_flags} emptyState="No data source yet — N/A" />
             </SectionBlock>
-          </>
+          </div>
         )}
       </DashboardGate>
     </div>

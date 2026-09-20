@@ -19,7 +19,7 @@ export function ReconciliationScreen() {
   return (
     <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
       {(d) => (
-        <div>
+        <div className="stagger">
           <SectionBlock title="Connected accounts">
             <Ledger rows={d.accounts} emptyState="No data source yet — N/A" />
           </SectionBlock>

@@ -21,7 +21,7 @@ export function PayablesScreen() {
   return (
     <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
       {(d) => (
-        <div>
+        <div className="stagger">
           <SectionBlock title="Needs your approval">
             <Ledger
               rows={d.queue}

@@ -97,7 +97,7 @@ export function FlightSimulatorScreen() {
 
   function reset() { setLever("collections"); setAmount(150000); setDays(14); }
 
-  return <div className="pb-8">
+  return <div className="stagger pb-8">
     <div className="mb-7 flex flex-wrap items-end justify-between gap-3 border-b border-rule pb-5">
       <div><p className="mb-1 font-mono text-2xs uppercase tracking-[0.16em] text-forecast">Planning sandbox</p><h1 className="font-serif text-2xl text-ink">Flight Simulator</h1><p className="mt-1 text-sm text-ink-soft">Test a decision against the current cash plan. Nothing is written back.</p></div>
       <button onClick={reset} className="inline-flex items-center gap-1.5 text-xs text-ink-soft transition-colors hover:text-ink"><RotateCcw size={13} /> Reset scenario</button>

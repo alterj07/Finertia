@@ -30,7 +30,7 @@ export function AuditScreen() {
   return (
     <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
       {(d) => (
-        <div>
+        <div className="stagger">
           <SectionBlock title="Ask about any number">
             <p className="text-sm text-ink-soft">
               Ask the copilot — every answer cites the memory-graph nodes it used.

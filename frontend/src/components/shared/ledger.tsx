@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RollingFigure } from "@/components/shared/rolling-figure";
 import type { LedgerRowData, RowAction } from "@/lib/types";
 import { StatusTag } from "@/components/shared/status-tag";
 import { Waterfall } from "@/components/shared/waterfall";
@@ -53,7 +54,9 @@ function LedgerRow({ row }: { row: LedgerRowData }) {
         </div>
         <div className="flex items-center justify-between gap-2 pl-0 sm:justify-end sm:pl-0">
           {row.amount && (
-            <span className="font-mono text-sm text-ink">{row.amount}</span>
+            <span className="font-mono text-sm text-ink">
+              <RollingFigure value={row.amount} duration={700} />
+            </span>
           )}
           {hasDetail ? (
             <ChevronRight
@@ -114,7 +117,7 @@ export function Ledger({
   }
 
   return (
-    <div className="border-t-[1.5px] border-ink">
+    <div className="stagger-fast border-t-[1.5px] border-ink">
       {rows.map((row) => (
         <LedgerRow key={row.id} row={row} />
       ))}

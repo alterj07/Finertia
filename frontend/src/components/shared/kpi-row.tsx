@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
+import { RollingFigure } from "@/components/shared/rolling-figure";
 import type { KpiCellData } from "@/lib/types";
 
 export function KpiRow({ cells }: { cells: KpiCellData[] }) {
   return (
-    <div className="grid grid-cols-2 border border-rule bg-paper-raised sm:grid-cols-4">
+    <div className="stagger-fast grid grid-cols-2 border border-rule bg-paper-raised sm:grid-cols-4">
       {cells.map((cell, i) => (
         <div
           key={cell.label}
@@ -15,7 +16,9 @@ export function KpiRow({ cells }: { cells: KpiCellData[] }) {
           )}
         >
           <div className="text-xs text-ink-soft">{cell.label}</div>
-          <div className="mt-1 font-serif text-2xl leading-none text-ink">{cell.value}</div>
+          <div className="mt-1 font-serif text-2xl leading-none text-ink">
+            <RollingFigure value={cell.value} />
+          </div>
           {cell.delta && (
             <div
               className={cn(

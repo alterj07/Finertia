@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { RollingFigure } from "@/components/shared/rolling-figure";
 import type { WaterfallSpec } from "@/lib/types";
 
 const BAR_CLASS: Record<string, string> = {
@@ -20,9 +21,10 @@ export function Waterfall({ spec }: { spec: WaterfallSpec }) {
         return (
           <div key={bar.label} className="flex w-14 flex-col items-center justify-end gap-1">
             <span className="font-mono text-2xs text-ink-soft">
-              {bar.value > 0 && (bar.kind === "positive" || bar.kind === "negative") ? "+" : ""}
-              {bar.value}
-              {spec.unit ?? ""}
+              <RollingFigure
+                duration={700}
+                value={`${bar.value > 0 && (bar.kind === "positive" || bar.kind === "negative") ? "+" : ""}${bar.value}${spec.unit ?? ""}`}
+              />
             </span>
             <div
               className={cn("w-6 rounded-t-sm", BAR_CLASS[bar.kind])}

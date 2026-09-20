@@ -60,7 +60,7 @@ export function DealsScreen() {
   }
 
   return (
-    <div>
+    <div className="stagger">
       <SectionBlock
         title="Deals"
         headerRight={

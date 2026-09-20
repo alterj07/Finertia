@@ -42,7 +42,7 @@ export function CommandCenterScreen() {
   return (
     <DashboardGate loading={loading} error={error} data={data} onRan={reload}>
       {(d) => (
-        <div>
+        <div className="stagger">
           <SectionBlock title="Today">
             <KpiRow cells={d.kpis} />
           </SectionBlock>

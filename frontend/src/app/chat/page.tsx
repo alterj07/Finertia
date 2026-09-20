@@ -228,7 +228,7 @@ function ChatPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col gap-4 p-4 md:flex-row">
+    <main className="stagger flex min-h-screen flex-col gap-4 p-4 md:flex-row">
       <Card className="flex min-h-[70vh] flex-1 flex-col md:w-3/5">
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Finertia Assistant</CardTitle>
