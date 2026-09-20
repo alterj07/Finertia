@@ -121,6 +121,13 @@ export function getSession(id: string) {
   return apiFetch<Session>(`/api/chat/sessions/${id}`);
 }
 
+export async function deleteChatSession(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/chat/sessions/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new ApiError(res.status, `${res.status} ${res.statusText}`);
+}
+
 export function getNode(id: string) {
   return apiFetch<NodeDetail>(`/api/memory/node?id=${encodeURIComponent(id)}`);
 }

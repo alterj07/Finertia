@@ -3,23 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, X } from "lucide-react";
+import { ArrowUp, MessageSquarePlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChatText } from "@/components/shared/chat-text";
 import { useAgentStatus } from "@/lib/use-agent-status";
 import { COPILOT_SCRIPTS } from "@/lib/config/copilot";
 import { useAppStore } from "@/store/app-store";
 import { useCopilotStore } from "@/store/copilot-store";
-import type { CopilotMessage } from "@/lib/types";
 
-const EMPTY_MESSAGES: CopilotMessage[] = [];
 
 export function CopilotRail() {
   const copilotOpen = useAppStore((s) => s.copilotOpen);
   const setCopilotOpen = useAppStore((s) => s.setCopilotOpen);
   const activeModule = useCopilotStore((s) => s.activeModule);
-  const messages = useCopilotStore((s) => s.messages[s.activeModule] ?? EMPTY_MESSAGES);
+  const messages = useCopilotStore((s) => s.messages);
   const sendMessage = useCopilotStore((s) => s.sendMessage);
+  const resetConversation = useCopilotStore((s) => s.resetConversation);
+  const setActiveModule = useCopilotStore((s) => s.setActiveModule);
   const pending = useCopilotStore((s) => s.pending);
   const pendingDraft = useCopilotStore((s) => s.pendingDraft);
   const clearPendingDraft = useCopilotStore((s) => s.clearPendingDraft);
@@ -28,15 +28,30 @@ export function CopilotRail() {
   const [input, setInput] = useState("");
   const [consumedDraft, setConsumedDraft] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [hydrated, setHydrated] = useState(false);
   const { status: agentStatus } = useAgentStatus();
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const script = COPILOT_SCRIPTS[activeModule];
 
+  // Manual rehydration (skipHydration) so persisted messages never mismatch
+  // SSR markup; then post the one-time opener via setActiveModule.
+  useEffect(() => {
+    let live = true;
+    Promise.resolve(useCopilotStore.persist.rehydrate()).then(() => {
+      if (!live) return;
+      setHydrated(true);
+      setActiveModule(useCopilotStore.getState().activeModule);
+    });
+    return () => {
+      live = false;
+    };
+  }, [setActiveModule]);
+
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages.length]);
+  }, [messages.length, hydrated]);
 
   // Adjust the input from a pending draft during render (React's documented
   // pattern for syncing local state from external state), then handle the
@@ -55,7 +70,7 @@ export function CopilotRail() {
 
   function submit(text: string) {
     if (!text.trim() || pending) return;
-    sendMessage(activeModule, text);
+    sendMessage(text);
     setInput("");
   }
 
@@ -66,19 +81,32 @@ export function CopilotRail() {
           <div className="font-serif text-[15px] text-ink">Ask Finertia</div>
           <div className="mt-0.5 text-xs text-ink-soft">Context-aware to whatever screen you&rsquo;re on</div>
         </div>
-        <button
-          type="button"
-          onClick={() => setCopilotOpen(false)}
-          className="text-ink-soft hover:text-ink min-[880px]:hidden"
-          aria-label="Close Ask Finertia"
-        >
-          <X size={16} />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => resetConversation()}
+            disabled={pending}
+            className="text-ink-soft hover:text-ink disabled:opacity-40"
+            aria-label="New chat"
+            title="New chat"
+          >
+            <MessageSquarePlus size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCopilotOpen(false)}
+            className="text-ink-soft hover:text-ink min-[880px]:hidden"
+            aria-label="Close Ask Finertia"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <div ref={logRef} className="scroll-thin flex-1 overflow-y-auto px-4 py-4">
         <div className="flex flex-col gap-4">
-          {messages.map((m) =>
+          {hydrated &&
+            messages.map((m) =>
             m.role === "agent" ? (
               <div key={m.id} className="max-w-[70ch]">
                 <div className="mb-1 font-mono text-2xs tracking-wide text-ink-soft">FINERTIA</div>

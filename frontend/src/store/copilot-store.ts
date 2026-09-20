@@ -1,126 +1,154 @@
 "use client";
 
 import { create } from "zustand";
-import { ApiError, sendChat } from "@/lib/api";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { ApiError, deleteChatSession, sendChat } from "@/lib/api";
 import { COPILOT_SCRIPTS } from "@/lib/config/copilot";
 import type { CopilotMessage, ModuleKey } from "@/lib/types";
 
 interface CopilotState {
   activeModule: ModuleKey;
-  visited: Partial<Record<ModuleKey, boolean>>;
-  messages: Partial<Record<ModuleKey, CopilotMessage[]>>;
-  sessionIds: Partial<Record<ModuleKey, string>>;
+  messages: CopilotMessage[];
+  sessionId: string | null;
+  opened: boolean;
   pending: boolean;
   error: string | null;
   pendingDraft: string | null;
   setActiveModule: (module: ModuleKey) => void;
-  sendMessage: (module: ModuleKey, text: string) => Promise<void>;
-  getMessages: (module: ModuleKey) => CopilotMessage[];
+  sendMessage: (text: string) => Promise<void>;
+  resetConversation: () => void;
   setPendingDraft: (text: string) => void;
   clearPendingDraft: () => void;
 }
 
-let idCounter = 0;
 function nextId(prefix: string) {
-  idCounter += 1;
-  return `${prefix}-${idCounter}`;
+  return `${prefix}-${crypto.randomUUID()}`;
 }
 
-export const useCopilotStore = create<CopilotState>((set, get) => ({
-  activeModule: "command-center",
-  visited: {},
-  messages: {},
-  sessionIds: {},
-  pending: false,
-  error: null,
-  pendingDraft: null,
+function opener(): CopilotMessage {
+  const script = COPILOT_SCRIPTS["command-center"];
+  return {
+    id: nextId("agent"),
+    role: "agent",
+    text: script.opening,
+    citations: script.openingCitations,
+  };
+}
 
-  setActiveModule: (module) => {
-    set((s) => {
-      if (s.visited[module]) {
-        return { activeModule: module };
-      }
-      const script = COPILOT_SCRIPTS[module];
-      const opening: CopilotMessage = {
-        id: nextId("agent"),
-        role: "agent",
-        text: script.opening,
-        citations: script.openingCitations,
-      };
-      return {
-        activeModule: module,
-        visited: { ...s.visited, [module]: true },
-        messages: {
-          ...s.messages,
-          [module]: [...(s.messages[module] ?? []), opening],
-        },
-      };
-    });
-  },
+/** persist writes localStorage on every set — hydrate first so a set that
+ * lands before the rail's rehydrate() can't clobber the saved thread. */
+function ensureHydrated() {
+  if (typeof window !== "undefined" && !useCopilotStore.persist.hasHydrated()) {
+    useCopilotStore.persist.rehydrate();
+  }
+}
 
-  sendMessage: async (module, text) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const userMessage: CopilotMessage = {
-      id: nextId("user"),
-      role: "user",
-      text: trimmed,
-    };
-    set((s) => ({
-      pending: true,
+export const useCopilotStore = create<CopilotState>()(
+  persist(
+    (set, get) => ({
+      activeModule: "command-center",
+      messages: [],
+      sessionId: null,
+      opened: false,
+      pending: false,
       error: null,
-      messages: {
-        ...s.messages,
-        [module]: [...(s.messages[module] ?? []), userMessage],
+      pendingDraft: null,
+
+      setActiveModule: (module) => {
+        ensureHydrated();
+        set((s) => {
+          if (!s.opened && s.messages.length === 0) {
+            return { activeModule: module, opened: true, messages: [opener()] };
+          }
+          return { activeModule: module, opened: true };
+        });
       },
-    }));
 
-    try {
-      const resp = await sendChat(
-        get().sessionIds[module] ?? null,
-        trimmed,
-        `Module: ${module}`,
-      );
-      const reply: CopilotMessage = {
-        id: nextId("agent"),
-        role: "agent",
-        text: resp.message.content ?? "",
-        citations: resp.citations.map((id) => ({
-          label: id,
-          href: `/graph?node=${encodeURIComponent(id)}`,
-        })),
-      };
-      set((s) => ({
-        sessionIds: { ...s.sessionIds, [module]: resp.session_id },
-        messages: {
-          ...s.messages,
-          [module]: [...(s.messages[module] ?? []), reply],
-        },
-      }));
-    } catch (e) {
-      const detail =
-        e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e);
-      set((s) => ({
-        error: detail,
-        messages: {
-          ...s.messages,
-          [module]: [
-            ...(s.messages[module] ?? []),
-            {
-              id: nextId("agent"),
-              role: "agent",
-              text: `Couldn't reach the Finertia backend: ${detail}`,
-            },
-          ],
-        },
-      }));
-    } finally {
-      set({ pending: false });
-    }
-  },
+      sendMessage: async (text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        ensureHydrated();
+        const moduleKey = get().activeModule;
+        const userMessage: CopilotMessage = {
+          id: nextId("user"),
+          role: "user",
+          text: trimmed,
+        };
+        set((s) => ({
+          pending: true,
+          error: null,
+          messages: [...s.messages, userMessage],
+        }));
 
-  getMessages: (module) => get().messages[module] ?? [],
+        try {
+          const resp = await sendChat(
+            get().sessionId,
+            trimmed,
+            `Module: ${moduleKey}`,
+          );
+          const reply: CopilotMessage = {
+            id: nextId("agent"),
+            role: "agent",
+            text: resp.message.content ?? "",
+            citations: resp.citations.map((id) => ({
+              label: id,
+              href: `/graph?node=${encodeURIComponent(id)}`,
+            })),
+          };
+          set((s) => ({
+            sessionId: resp.session_id,
+            messages: [...s.messages, reply],
+          }));
+        } catch (e) {
+          const detail =
+            e instanceof ApiError
+              ? e.message
+              : e instanceof Error
+                ? e.message
+                : String(e);
+          set((s) => ({
+            error: detail,
+            messages: [
+              ...s.messages,
+              {
+                id: nextId("agent"),
+                role: "agent",
+                text: `Couldn't reach the Finertia backend: ${detail}`,
+              },
+            ],
+          }));
+        } finally {
+          set({ pending: false });
+        }
+      },
 
-  setPendingDraft: (text) => set({ pendingDraft: text }),
-  clearPendingDraft: () => set({ pendingDraft: null }),
-}));
+      resetConversation: () => {
+        ensureHydrated();
+        const old = get().sessionId;
+        if (old) {
+          deleteChatSession(old).catch(() => undefined);
+        }
+        set({
+          messages: [opener()],
+          sessionId: null,
+          opened: true,
+          error: null,
+        });
+      },
+
+      setPendingDraft: (text) => set({ pendingDraft: text }),
+      clearPendingDraft: () => set({ pendingDraft: null }),
+    }),
+    {
+      name: "finertia-copilot",
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({
+        messages: s.messages,
+        sessionId: s.sessionId,
+        opened: s.opened,
+      }),
+      skipHydration: true,
+    },
+  ),
+);
