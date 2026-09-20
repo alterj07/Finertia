@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
@@ -57,11 +58,10 @@ export function LeftRail() {
       >
         <div className="flex h-16 shrink-0 items-center gap-3 px-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center" aria-hidden>
-            <span className="font-serif text-[19px] leading-none text-white">F</span>
+            <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
           </span>
           <div className={fade}>
-            <div className="font-serif text-[19px] leading-none text-white">Finertia</div>
-            <div className="mt-1.5 text-xs text-white/45">Agentic Finance OS</div>
+            <div className="font-serif text-[21px] font-semibold leading-none text-white">Finertia</div>
           </div>
           <button
             type="button"

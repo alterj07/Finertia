@@ -12,7 +12,6 @@ export type ModuleKey =
   | "close"
   | "forecast"
   | "audit"
-  | "deals"
   | "graph"
   | "flight-simulator";
 

@@ -11,6 +11,7 @@ export function pathToModule(pathname: string): ModuleKey {
     case "reconciliation":
       return "reconciliation";
     case "close":
+    case "deals":
       return "close";
     case "forecast":
       return "forecast";
@@ -18,8 +19,6 @@ export function pathToModule(pathname: string): ModuleKey {
       return "flight-simulator";
     case "audit":
       return "audit";
-    case "deals":
-      return "deals";
     case "graph":
       return "graph";
     default:

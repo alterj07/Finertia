@@ -1,16 +1,6 @@
 import type { ModuleCopilotScript, ModuleKey } from "@/lib/types";
 
 export const COPILOT_SCRIPTS: Record<ModuleKey, ModuleCopilotScript> = {
-  deals: {
-    opening:
-      "Deals view. The Deals agent reads the inbox, separates sales opportunities from operations mail, sizes each one and checks the customer's payment record before drafting a reply.",
-    openingCitations: [],
-    suggestions: [
-      "Which deals have a credit risk?",
-      "What is the pipeline estimate?",
-      "Why is the Vantage email not a deal?",
-    ],
-  },
   "command-center": {
     opening:
       "I'm Finertia. I answer from the shared memory graph and cite the bank lines, journal entries, invoices and emails I used. Ask about any number, or ask me to run the reconciliation.",
@@ -53,12 +43,12 @@ export const COPILOT_SCRIPTS: Record<ModuleKey, ModuleCopilotScript> = {
   },
   close: {
     opening:
-      "Close view. Ask what is blocking sign-off, which adjusting entries are proposed, and what evidence supports them.",
+      "Close view. The Deals agent reads the inbox, separates sales opportunities from operations mail, sizes each one and checks the customer's payment record before drafting a reply. I can also tell you what is blocking sign-off and which adjusting entries are proposed.",
     openingCitations: [],
     suggestions: [
+      "Which deals have a credit risk?",
+      "What is the pipeline estimate?",
       "What adjusting entries are proposed?",
-      "Are there unrecorded bank items?",
-      "Summarise the reconciliation result",
     ],
   },
   forecast: {
